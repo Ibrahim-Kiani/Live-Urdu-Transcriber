@@ -20,7 +20,7 @@ from groq import Groq
 load_dotenv()
 
 model_name = "whisper-large-v3"
-apis = "GROQ_API_KEY"
+apis = ["GROQ_API_KEY", "GROQ2_API_KEY"]
 # Initialize FastAPI app
 app = FastAPI(
     title="Urdu Audio Translator",
@@ -42,7 +42,7 @@ templates_dir = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
 
 # Initialize Groq client
-groq_api_key = os.getenv(apis)
+groq_api_key = os.getenv(random.choice(apis))
 if not groq_api_key:
     print("⚠️  Warning: GROQ_API_KEY not found in environment variables!")
     print("   Please create a .env file with your GROQ_API_KEY")
