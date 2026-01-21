@@ -14,7 +14,7 @@ A mobile-responsive web application that records live audio from the user's micr
 - Uses Web Audio API to monitor microphone volume (RMS)
 - Filters background noise and ambient sound
 - Requires minimum peak volume to accept audio
-- Prevents false triggers and "Thank you" spam
+- Prevents false triggers
 
 📱 **Mobile-First Design**
 - Fully responsive UI with Tailwind CSS
@@ -44,7 +44,7 @@ A mobile-responsive web application that records live audio from the user's micr
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/Ibrahim-Kiani/Live-Urdu-Transcriber
    cd urdu-transcription
    ```
 
@@ -75,30 +75,6 @@ git add .
 git commit -m "Ready for deployment"
 git push
 ```
-
-### Step 2: Deploy to Render
-
-1. Go to [render.com](https://render.com) and sign up/login
-2. Click **New +** → **Web Service**
-3. Select your GitHub repository
-4. Configure:
-   - **Name**: `urdu-translator` (or your choice)
-   - **Runtime**: `Python`
-   - **Build Command**: (leave empty, uses render.yaml)
-   - **Start Command**: (leave empty, uses render.yaml)
-5. Add **Environment Variables**:
-   - Key: `GROQ_API_KEY`
-   - Value: (paste your Groq API key)
-6. Click **Create Web Service**
-
-Render will automatically:
-- Read `render.yaml` configuration
-- Install dependencies from `requirements.txt`
-- Start the FastAPI server
-- Provide you with a live URL (e.g., `https://urdu-translator.onrender.com`)
-
-### Step 3: Access Your App
-Your app will be live at the Render URL! Share it with others.
 
 ## Configuration
 
