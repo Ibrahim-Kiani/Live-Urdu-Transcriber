@@ -153,8 +153,29 @@
 
         <!-- Control Panel -->
         <div class="bg-gray-800 rounded-2xl border border-gray-700 p-4">
-            <!-- Recording Button -->
-            <div class="flex flex-col items-center gap-4">
+            <!-- Lecture Setup (Before Recording) -->
+            <div id="lectureSetup" class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-gray-400 text-sm font-medium mb-2">Lecture/Session Name</label>
+                    <input 
+                        id="lectureNameInput" 
+                        type="text" 
+                        placeholder="e.g., Physics 101 - Chapter 5"
+                        class="w-full px-4 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                    >
+                    <p class="text-gray-500 text-xs mt-1">Give your recording a name for better organization</p>
+                </div>
+                
+                <button 
+                    id="startSessionBtn"
+                    class="w-full px-6 py-3 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-medium transition-all duration-300 active:scale-95"
+                >
+                    Start Recording Session
+                </button>
+            </div>
+            
+            <!-- Recording Controls (During Recording) -->
+            <div id="recordingControls" class="hidden flex flex-col items-center gap-4">
                 <div class="relative">
                     <!-- Pulse ring for recording state -->
                     <div id="pulseRing" class="hidden absolute inset-0 bg-red-500 rounded-full pulse-ring opacity-50"></div>
@@ -169,22 +190,31 @@
                     </button>
                 </div>
                 
-                <div class="text-center">
+                <div class="text-center w-full">
                     <p id="recordingStatus" class="text-gray-300 font-medium">Tap to Start Recording</p>
-                    <p id="recordingTimer" class="text-gray-500 text-sm mt-1 hidden">00:00</p>
+                    <p id="recordingTimer" class="text-gray-500 text-sm mt-1">00:00</p>
+                    <p id="lectureNameDisplay" class="text-emerald-400 text-xs mt-2 font-medium"></p>
                 </div>
-            </div>
+                
+                <!-- End Session Button -->
+                <button 
+                    id="endSessionBtn"
+                    class="w-full px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition-colors"
+                >
+                    End Session & Generate Title
+                </button>
 
-            <!-- Settings Row -->
-            <div class="mt-4 pt-4 border-t border-gray-700 flex items-center justify-between text-sm">
-                <div class="flex items-center gap-2 text-gray-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <span>Auto-detects speech pauses</span>
-                </div>
-                <div id="chunkCounter" class="text-gray-500">
-                    Chunks: <span id="chunkCount">0</span>
+                <!-- Settings Row -->
+                <div class="w-full pt-4 border-t border-gray-700 flex items-center justify-between text-sm">
+                    <div class="flex items-center gap-2 text-gray-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>Auto-detects speech pauses</span>
+                    </div>
+                    <div id="chunkCounter" class="text-gray-500">
+                        Chunks: <span id="chunkCount">0</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -199,6 +229,19 @@
             <div>
                 <p class="font-medium">Error</p>
                 <p id="errorMessage" class="text-sm text-red-300 mt-1"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="successToast" class="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-emerald-900/90 border border-emerald-700 text-emerald-200 px-4 py-3 rounded-xl shadow-lg transform translate-y-full opacity-0 transition-all duration-300 z-50">
+        <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <p class="font-medium">Success</p>
+                <p id="successMessage" class="text-sm text-emerald-300 mt-1"></p>
             </div>
         </div>
     </div>
@@ -233,13 +276,22 @@
             processingCount: 0,
             volumeCheckInterval: null,
             timerInterval: null,
-            peakVolume: 0  // Track peak volume during recording
+            peakVolume: 0,  // Track peak volume during recording
+            lectureId: null,  // Current lecture ID
+            lectureName: null,  // Current lecture name
+            sessionActive: false  // Whether a session is active
         };
 
         // ============================================
         // DOM Elements
         // ============================================
         const elements = {
+            lectureNameInput: document.getElementById('lectureNameInput'),
+            lectureSetup: document.getElementById('lectureSetup'),
+            recordingControls: document.getElementById('recordingControls'),
+            startSessionBtn: document.getElementById('startSessionBtn'),
+            endSessionBtn: document.getElementById('endSessionBtn'),
+            lectureNameDisplay: document.getElementById('lectureNameDisplay'),
             recordBtn: document.getElementById('recordBtn'),
             micIcon: document.getElementById('micIcon'),
             stopIcon: document.getElementById('stopIcon'),
@@ -254,7 +306,9 @@
             clearBtn: document.getElementById('clearBtn'),
             chunkCount: document.getElementById('chunkCount'),
             errorToast: document.getElementById('errorToast'),
-            errorMessage: document.getElementById('errorMessage')
+            errorMessage: document.getElementById('errorMessage'),
+            successToast: document.getElementById('successToast'),
+            successMessage: document.getElementById('successMessage')
         };
 
         // ============================================
@@ -297,6 +351,84 @@
             }
             
             return Math.sqrt(sum / dataArray.length);
+        }
+
+        // ============================================
+        // Lecture Management Functions
+        // ============================================
+        async function createLecture(lectureName) {
+            try {
+                const response = await fetch('/lecture/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lecture_name: lectureName })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to create lecture');
+                }
+
+                const data = await response.json();
+                state.lectureId = data.lecture_id;
+                state.lectureName = data.lecture_name;
+                state.sessionActive = true;
+
+                return data;
+            } catch (error) {
+                console.error('Lecture creation error:', error);
+                throw error;
+            }
+        }
+
+        async function endRecording() {
+            if (!state.lectureId) {
+                showError('No active lecture session');
+                return;
+            }
+
+            try {
+                elements.endSessionBtn.disabled = true;
+                elements.endSessionBtn.textContent = 'Generating title...';
+
+                const response = await fetch('/lecture/end', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lecture_id: state.lectureId })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to end recording');
+                }
+
+                const data = await response.json();
+
+                // Show success with generated title
+                showSuccess(`✅ Lecture saved! Title: "${data.generated_title}"`);
+
+                // Reset UI
+                state.lectureId = null;
+                state.lectureName = null;
+                state.sessionActive = false;
+                state.chunkCount = 0;
+                elements.chunkCount.textContent = '0';
+
+                // Return to lecture setup
+                setTimeout(() => {
+                    elements.recordingControls.classList.add('hidden');
+                    elements.lectureSetup.classList.remove('hidden');
+                    elements.lectureNameInput.value = '';
+                    clearSubtitles();
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error ending recording:', error);
+                showError(error.message);
+            } finally {
+                elements.endSessionBtn.disabled = false;
+                elements.endSessionBtn.textContent = 'End Session & Generate Title';
+            }
         }
 
         // ============================================
@@ -506,6 +638,12 @@
 
             const formData = new FormData();
             formData.append('audio', audioBlob, 'audio.webm');
+            
+            // Add lecture_id and chunk_number if session is active
+            if (state.lectureId) {
+                formData.append('lecture_id', state.lectureId);
+                formData.append('chunk_number', state.chunkCount);
+            }
 
             try {
                 const response = await fetch(CONFIG.API_ENDPOINT, {
@@ -614,6 +752,15 @@
             }, 5000);
         }
 
+        function showSuccess(message) {
+            elements.successMessage.textContent = message;
+            elements.successToast.classList.remove('translate-y-full', 'opacity-0');
+            
+            setTimeout(() => {
+                elements.successToast.classList.add('translate-y-full', 'opacity-0');
+            }, 4000);
+        }
+
         function getErrorMessage(error) {
             if (error.name === 'NotAllowedError') {
                 return 'Microphone access denied. Please allow microphone access and try again.';
@@ -634,6 +781,48 @@
         // ============================================
         // Event Listeners
         // ============================================
+        
+        // Start Session Button
+        elements.startSessionBtn.addEventListener('click', async () => {
+            const lectureName = elements.lectureNameInput.value.trim();
+            
+            if (!lectureName) {
+                showError('Please enter a lecture/session name');
+                return;
+            }
+
+            try {
+                elements.startSessionBtn.disabled = true;
+                elements.startSessionBtn.textContent = 'Starting...';
+                
+                await createLecture(lectureName);
+                
+                // Switch UI
+                elements.lectureSetup.classList.add('hidden');
+                elements.recordingControls.classList.remove('hidden');
+                elements.lectureNameDisplay.textContent = `📚 ${lectureName}`;
+                elements.recordingStatus.textContent = 'Tap to Start Recording';
+                
+                showSuccess(`Session "${lectureName}" started!`);
+                
+            } catch (error) {
+                showError(`Failed to start session: ${error.message}`);
+            } finally {
+                elements.startSessionBtn.disabled = false;
+                elements.startSessionBtn.textContent = 'Start Recording Session';
+            }
+        });
+
+        // End Session Button
+        elements.endSessionBtn.addEventListener('click', async () => {
+            if (!state.isRecording) {
+                await endRecording();
+            } else {
+                showError('Please stop recording first before ending the session');
+            }
+        });
+
+        // Record Button
         elements.recordBtn.addEventListener('click', () => {
             if (state.isRecording) {
                 stopRecording();
@@ -644,7 +833,7 @@
 
         elements.clearBtn.addEventListener('click', clearSubtitles);
 
-        // Handle page visibility change (pause when tab is hidden)
+        // Handle page visibility change
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && state.isRecording) {
                 // Optionally stop recording when tab is hidden
