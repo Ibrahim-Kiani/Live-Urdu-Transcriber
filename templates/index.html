@@ -208,11 +208,11 @@
         // Configuration
         // ============================================
         const CONFIG = {
-            SILENCE_THRESHOLD: 0.10,       // RMS volume threshold for silence detection (increased to 0.10)
-            SILENCE_DURATION: 1500,        // ms of silence before cutting (1.5 seconds)
-            MAX_CHUNK_DURATION: 10000,     // Max recording duration before forced cut (10 seconds)
+            SILENCE_THRESHOLD: 0.05,       // RMS volume threshold for silence detection (increased to 0.10)
+            SILENCE_DURATION: 2500,        // ms of silence before cutting (1.5 seconds)
+            MAX_CHUNK_DURATION: 50000,     // Max recording duration before forced cut (10 seconds)
             VOLUME_CHECK_INTERVAL: 50,     // How often to check volume (ms)
-            MIN_CHUNK_BYTES: 12000,        // Minimum audio bytes before sending (increased to 12KB)
+            MIN_CHUNK_BYTES: 52000,        // Minimum audio bytes before sending (increased to 12KB)
             MIN_PEAK_VOLUME: 0.05,         // Minimum peak volume to consider as valid speech
             API_ENDPOINT: '/translate'
         };
