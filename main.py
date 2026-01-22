@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from pydantic import BaseModel
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -142,8 +142,8 @@ async def create_lecture(request: CreateLectureRequest):
 @app.post("/translate")
 async def translate_audio(
     audio: UploadFile = File(...),
-    lecture_id: Optional[int] = None,
-    chunk_number: Optional[int] = None
+    lecture_id: Optional[str] = Form(None),
+    chunk_number: Optional[str] = Form(None)
 ):
     """
     Translate audio from Urdu to English
@@ -151,6 +151,12 @@ async def translate_audio(
     Accepts audio file and returns English translation.
     Optionally saves to database if lecture_id is provided.
     """
+    # Convert form data strings to integers
+    lecture_id_int = int(lecture_id) if lecture_id else None
+    chunk_number_int = int(chunk_number) if chunk_number else None
+    
+    print(f"📝 Translation request - lecture_id: {lecture_id_int}, chunk_number: {chunk_number_int}")
+    
     if not groq_client:
         raise HTTPException(
             status_code=500,
@@ -195,12 +201,16 @@ async def translate_audio(
             
             translated_text = str(translation).strip()
             
+            print(f"✅ Translated: {translated_text[:100]}...")
+            
             # Save to database if lecture_id provided
-            if lecture_id and supabase_client and translated_text:
+            if lecture_id_int and supabase_client and translated_text:
                 try:
-                    supabase_client.table("transcriptions").insert({
-                        "lecture_id": lecture_id,
-                        "chunk_number": chunk_number or 0,
+                    print(f"💾 Saving to database - lecture_id: {lecture_id_int}, chunk: {chunk_number_int}")
+                    
+                    result = supabase_client.table("transcriptions").insert({
+                        "lecture_id": lecture_id_int,
+                        "chunk_number": chunk_number_int or 0,
                         "english_text": translated_text,
                         "created_at": datetime.now(timezone.utc).isoformat(),
                         "timestamps": {
@@ -208,20 +218,28 @@ async def translate_audio(
                         }
                     }).execute()
                     
+                    print(f"✅ Saved to database successfully: {result.data}")
+                    
                     # Update lecture state
-                    if lecture_id in lectures_state:
-                        lectures_state[lecture_id]["chunk_count"] += 1
-                        lectures_state[lecture_id]["full_transcript"] += " " + translated_text
+                    if lecture_id_int in lectures_state:
+                        lectures_state[lecture_id_int]["chunk_count"] += 1
+                        lectures_state[lecture_id_int]["full_transcript"] += " " + translated_text
+                        print(f"📊 Updated state - chunks: {lectures_state[lecture_id_int]['chunk_count']}")
                         
                 except Exception as db_error:
-                    print(f"Database save error: {db_error}")
+                    print(f"❌ Database save error: {db_error}")
+                    import traceback
+                    traceback.print_exc()
                     # Continue even if database save fails
+            else:
+                if not lecture_id_int:
+                    print("⚠️  No lecture_id provided, skipping database save")
             
             return TranslationResponse(
                 text=translated_text,
                 status="success",
-                lecture_id=lecture_id,
-                chunk_number=chunk_number
+                lecture_id=lecture_id_int,
+                chunk_number=chunk_number_int
             )
             
         finally:
@@ -250,8 +268,12 @@ async def end_recording(request: EndRecordingRequest):
     try:
         lecture_id = request.lecture_id
         
+        print(f"🔚 Ending lecture {lecture_id}")
+        print(f"📊 Lectures state: {lectures_state}")
+        
         if lecture_id not in lectures_state:
-            raise HTTPException(status_code=404, detail="Lecture not found")
+            print(f"❌ Lecture {lecture_id} not found in state. Available: {list(lectures_state.keys())}")
+            raise HTTPException(status_code=404, detail="Lecture not found in session state")
         
         if not groq_client:
             raise HTTPException(status_code=500, detail="Groq API not configured")
@@ -260,20 +282,27 @@ async def end_recording(request: EndRecordingRequest):
             raise HTTPException(status_code=500, detail="Database not configured")
         
         # Get full transcript from database
+        print(f"🔍 Fetching transcriptions from database for lecture {lecture_id}")
         transcript_response = supabase_client.table("transcriptions").select(
             "english_text"
         ).eq("lecture_id", lecture_id).order("chunk_number").execute()
         
+        print(f"📝 Found {len(transcript_response.data) if transcript_response.data else 0} transcriptions in database")
+        
         if not transcript_response.data:
             # Use from memory if no DB records
+            print("⚠️  No database records, using in-memory transcript")
             full_transcript = lectures_state[lecture_id]["full_transcript"]
         else:
             full_transcript = " ".join([
                 item["english_text"] for item in transcript_response.data
             ])
         
+        print(f"📄 Full transcript length: {len(full_transcript)} characters")
+        print(f"📄 Transcript preview: {full_transcript[:200]}...")
+        
         if not full_transcript.strip():
-            raise HTTPException(status_code=400, detail="No transcript available")
+            raise HTTPException(status_code=400, detail="No transcript available. Please record some audio before ending the session.")
         
         # Generate title using LLaMA
         print(f"Generating title for lecture {lecture_id}...")

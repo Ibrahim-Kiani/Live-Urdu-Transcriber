@@ -263,6 +263,11 @@
         // ============================================
         // State Management
         // ============================================
+        
+        // Try to restore session from sessionStorage
+        const savedSession = sessionStorage.getItem('urdu_translator_session');
+        const restoredSession = savedSession ? JSON.parse(savedSession) : {};
+        
         let state = {
             isRecording: false,
             mediaRecorder: null,
@@ -272,15 +277,35 @@
             audioChunks: [],
             silenceStart: null,
             recordingStart: null,
-            chunkCount: 0,
+            chunkCount: restoredSession.chunkCount || 0,
             processingCount: 0,
             volumeCheckInterval: null,
             timerInterval: null,
             peakVolume: 0,  // Track peak volume during recording
-            lectureId: null,  // Current lecture ID
-            lectureName: null,  // Current lecture name
-            sessionActive: false  // Whether a session is active
+            lectureId: restoredSession.lectureId || null,  // Current lecture ID
+            lectureName: restoredSession.lectureName || null,  // Current lecture name
+            sessionActive: restoredSession.sessionActive || false  // Whether a session is active
         };
+        
+        // Function to save session to sessionStorage
+        function saveSessionState() {
+            sessionStorage.setItem('urdu_translator_session', JSON.stringify({
+                lectureId: state.lectureId,
+                lectureName: state.lectureName,
+                chunkCount: state.chunkCount,
+                sessionActive: state.sessionActive
+            }));
+            console.log('💾 Session state saved:', {
+                lectureId: state.lectureId,
+                lectureName: state.lectureName
+            });
+        }
+        
+        // Function to clear session from sessionStorage
+        function clearSessionState() {
+            sessionStorage.removeItem('urdu_translator_session');
+            console.log('🗑️ Session state cleared');
+        }
 
         // ============================================
         // DOM Elements
@@ -374,6 +399,15 @@
                 state.lectureName = data.lecture_name;
                 state.sessionActive = true;
 
+                console.log('✅ Lecture session created:', {
+                    lectureId: state.lectureId,
+                    lectureName: state.lectureName,
+                    sessionActive: state.sessionActive
+                });
+
+                // Save session state
+                saveSessionState();
+
                 return data;
             } catch (error) {
                 console.error('Lecture creation error:', error);
@@ -413,6 +447,9 @@
                 state.sessionActive = false;
                 state.chunkCount = 0;
                 elements.chunkCount.textContent = '0';
+                
+                // Clear saved session
+                clearSessionState();
 
                 // Return to lecture setup
                 setTimeout(() => {
@@ -435,7 +472,19 @@
         // Recording Functions
         // ============================================
         async function startRecording() {
+            // Check if session is active
+            if (!state.lectureId) {
+                showError('Please start a recording session first by entering a lecture name');
+                console.error('❌ Cannot record without active session. Current state:', state);
+                return;
+            }
+            
             try {
+                console.log('🎙️ Starting recording with session:', {
+                    lectureId: state.lectureId,
+                    lectureName: state.lectureName
+                });
+                
                 // Request microphone access
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
@@ -522,6 +571,11 @@
                 state.mediaRecorder.stop();
                 state.chunkCount++;
                 elements.chunkCount.textContent = state.chunkCount;
+                
+                // Save updated chunk count
+                if (state.lectureId) {
+                    saveSessionState();
+                }
             }
         }
 
@@ -636,13 +690,23 @@
             state.processingCount++;
             updateProcessingIndicator();
 
+            console.log('📤 Sending audio chunk:', {
+                lectureId: state.lectureId,
+                chunkCount: state.chunkCount,
+                sessionActive: state.sessionActive,
+                blobSize: audioBlob.size
+            });
+
             const formData = new FormData();
             formData.append('audio', audioBlob, 'audio.webm');
             
             // Add lecture_id and chunk_number if session is active
             if (state.lectureId) {
+                console.log('✅ Including lecture_id and chunk_number in request');
                 formData.append('lecture_id', state.lectureId);
                 formData.append('chunk_number', state.chunkCount);
+            } else {
+                console.warn('⚠️ No lectureId in state - recording without session!');
             }
 
             try {
@@ -824,6 +888,12 @@
 
         // Record Button
         elements.recordBtn.addEventListener('click', () => {
+            console.log('🎤 Record button clicked:', {
+                isRecording: state.isRecording,
+                lectureId: state.lectureId,
+                sessionActive: state.sessionActive
+            });
+            
             if (state.isRecording) {
                 stopRecording();
             } else {
@@ -851,8 +921,33 @@
         // ============================================
         // Initialization
         // ============================================
+        
+        // Restore UI if session was active
+        if (state.sessionActive && state.lectureId) {
+            console.log('🔄 Restoring session from storage:', {
+                lectureId: state.lectureId,
+                lectureName: state.lectureName,
+                chunkCount: state.chunkCount
+            });
+            
+            // Switch to recording controls
+            elements.lectureSetup.classList.add('hidden');
+            elements.recordingControls.classList.remove('hidden');
+            elements.lectureNameDisplay.textContent = `📚 ${state.lectureName}`;
+            elements.chunkCount.textContent = state.chunkCount;
+            elements.recordingStatus.textContent = 'Tap to Start Recording';
+            
+            showSuccess(`Session "${state.lectureName}" restored`);
+        }
+        
         console.log('🎙️ Urdu → English Translator initialized');
         console.log('Configuration:', CONFIG);
+        console.log('Initial state:', {
+            lectureId: state.lectureId,
+            lectureName: state.lectureName,
+            sessionActive: state.sessionActive,
+            chunkCount: state.chunkCount
+        });
     </script>
 </body>
 </html>
