@@ -307,7 +307,7 @@ async def end_recording(request: EndRecordingRequest):
         # Generate title using LLaMA
         print(f"Generating title for lecture {lecture_id}...")
         
-        title_prompt = f"""Based on the following lecture transcript, generate a concise and descriptive title (max 10 words) for this lecture.
+        title_prompt = f"""Based on the following lecture transcript, generate a concise and descriptive title (max 10 words) for this lecture. Return ONLY the title, do not share your thoughts or any other text.
 
 Transcript:
 {full_transcript[:2000]}...
