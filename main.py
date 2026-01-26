@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 from dotenv import load_dotenv
 from groq import Groq
+import httpx
 
 try:
     from supabase import create_client, Client
@@ -31,6 +32,7 @@ load_dotenv()
 # Constants
 TRANSLATION_MODEL = "whisper-large-v3"
 TITLE_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+ENHANCEMENT_MODEL = "tngtech/tng-r1t-chimera:free"
 
 # Pydantic models for request/response
 class CreateLectureRequest(BaseModel):
@@ -42,6 +44,10 @@ class StartRecordingResponse(BaseModel):
     status: str
 
 class EndRecordingRequest(BaseModel):
+    lecture_id: int
+
+
+class EnhanceLectureRequest(BaseModel):
     lecture_id: int
 
 class TranslationResponse(BaseModel):
@@ -77,6 +83,11 @@ if not groq_api_key:
 
 groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
 
+# Initialize OpenRouter client
+openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+if not openrouter_api_key:
+    print("⚠️  Warning: OPENROUTER_API_KEY not found in environment variables!")
+
 # Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_KEY")
@@ -93,6 +104,61 @@ else:
 
 # Global state for tracking lectures and chunks
 lectures_state = {}
+
+
+async def enhance_transcript(title: str, raw_transcript: str) -> Optional[str]:
+    """Use OpenRouter to refine the transcript."""
+    if not openrouter_api_key:
+        return None
+
+    prompt = (
+        "Role: You are a Technical Transcript Editor specializing in Machine Learning and Computer Science lectures.\n"
+        "Task: Your goal is to take a raw, machine-translated transcript from an Urdu-to-English system and "
+        "\"reconstruct\" it into a professional, readable English transcript.\n\n"
+        f"Title: {title}\n"
+        f"Raw Transcript: {raw_transcript}\n\n"
+        "Guidelines for Refinement:\n"
+        "- Preserve Semantic Meaning: Do not add new information or remove existing concepts. The goal is to make the existing content coherent.\n"
+        "- Fix \"Phonetic\" and Translation Errors: Machine translations often misinterpret technical terms (e.g., \"Wright Next\" usually means \"Right, next,\" and \"linear length\" might mean \"linear regression\"). Use the Title to make educated guesses for these technical corrections.\n"
+        "- Repair Sentence Structure: Convert disjointed, repetitive phrases into smooth, grammatically correct English. (e.g., \"on the basis of the rules, the machine has taken out the rules\" $\rightarrow$ \"Based on these rules, the machine has extracted patterns...\").\n"
+        "- Maintain Lecture Tone: Keep the instructional and conversational feel, but remove unnecessary fillers or extreme redundancies that don't add value.\n\n"
+        "Formatting:\n"
+        "- Use Paragraphs to separate distinct ideas.\n"
+        "- Use Bold for key technical terms.\n"
+        "- Use LaTeX for any mathematical formulas (e.g., $y = wx + b$).\n\n"
+        "Output Format: Return only the refined transcript. If a specific section is completely nonsensical even with context, place the best-guess interpretation in [brackets]."
+    )
+
+    headers = {
+        "Authorization": f"Bearer {openrouter_api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost",
+        "X-Title": "Live Urdu Transcriber"
+    }
+
+    payload = {
+        "model": ENHANCEMENT_MODEL,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.2,
+        "max_tokens": 2000
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=90) as client:
+            response = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data["choices"][0]["message"]["content"]
+            return content.strip() if content else None
+    except Exception as e:
+        print(f"Enhancement error: {e}")
+        return None
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -334,13 +400,23 @@ Title:"""
         
         generated_title = title_response.choices[0].message.content.strip()
         
-        # Update lecture with title and end time
-        update_response = supabase_client.table("lectures").update({
+        # Enhance transcript using OpenRouter (optional)
+        enhanced_transcript = await enhance_transcript(generated_title, full_transcript)
+
+        # Update lecture with title, transcript, enhancement, and end time
+        update_payload = {
             "generated_title": generated_title,
             "ended_at": datetime.now(timezone.utc).isoformat(),
             "full_transcript": full_transcript,
             "updated_at": datetime.now(timezone.utc).isoformat()
-        }).eq("id", lecture_id).execute()
+        }
+
+        if enhanced_transcript:
+            update_payload["enhanced_full_transcript"] = enhanced_transcript
+
+        update_response = supabase_client.table("lectures").update(
+            update_payload
+        ).eq("id", lecture_id).execute()
         
         # Clean up state
         if lecture_id in lectures_state:
@@ -395,6 +471,53 @@ async def get_lecture(lecture_id: int):
         raise HTTPException(status_code=500, detail=f"Failed to retrieve lecture: {error_msg}")
 
 
+@app.post("/lecture/{lecture_id}/enhance")
+async def enhance_lecture_transcript(lecture_id: int):
+    """Regenerate and store enhanced transcript for a lecture"""
+    try:
+        if not supabase_client:
+            raise HTTPException(status_code=500, detail="Database not configured")
+        if not openrouter_api_key:
+            raise HTTPException(status_code=500, detail="OpenRouter API key not configured")
+
+        lecture_response = supabase_client.table("lectures").select(
+            "id, lecture_name, generated_title, full_transcript"
+        ).eq("id", lecture_id).single().execute()
+
+        if not lecture_response.data:
+            raise HTTPException(status_code=404, detail="Lecture not found")
+
+        lecture = lecture_response.data
+        title = lecture.get("generated_title") or lecture.get("lecture_name") or "Untitled lecture"
+        raw_transcript = lecture.get("full_transcript") or ""
+
+        if not raw_transcript.strip():
+            raise HTTPException(status_code=400, detail="No transcript available to enhance")
+
+        enhanced_transcript = await enhance_transcript(title, raw_transcript)
+
+        if not enhanced_transcript:
+            raise HTTPException(status_code=500, detail="Enhancement failed")
+
+        update_response = supabase_client.table("lectures").update({
+            "enhanced_full_transcript": enhanced_transcript,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", lecture_id).execute()
+
+        return {
+            "lecture_id": lecture_id,
+            "enhanced_full_transcript": enhanced_transcript,
+            "status": "success"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Enhance lecture error: {error_msg}")
+        raise HTTPException(status_code=500, detail=f"Failed to enhance transcript: {error_msg}")
+
+
 @app.get("/lectures")
 async def list_lectures():
     """List all lectures for history view"""
@@ -425,7 +548,8 @@ async def health_check():
     return {
         "status": "healthy",
         "groq_configured": groq_client is not None,
-        "database_configured": supabase_client is not None
+        "database_configured": supabase_client is not None,
+        "openrouter_configured": openrouter_api_key is not None
     }
 
 

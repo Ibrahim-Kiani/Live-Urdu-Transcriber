@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lecture Archive · Urdu → English</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:opsz@8..72&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -175,7 +177,9 @@
         const state = {
             lectures: [],
             filtered: [],
-            selectedId: null
+            selectedId: null,
+            viewMode: 'enhanced',
+            isEnhancing: false
         };
 
         const elements = {
@@ -252,23 +256,65 @@
                 }
 
                 const data = await response.json();
+                if (!data.lecture.enhanced_full_transcript) {
+                    state.viewMode = 'original';
+                }
                 renderLectureDetail(data.lecture, data.transcriptions || []);
             } catch (error) {
                 showError(error.message);
             }
         }
 
+        async function regenerateEnhanced(lectureId) {
+            if (!lectureId || state.isEnhancing) return;
+
+            state.isEnhancing = true;
+            renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+
+            try {
+                const response = await fetch(`/lecture/${lectureId}/enhance`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to enhance transcript');
+                }
+
+                const data = await response.json();
+
+                if (state.currentLecture) {
+                    state.currentLecture.enhanced_full_transcript = data.enhanced_full_transcript;
+                    state.viewMode = 'enhanced';
+                }
+
+                renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                state.isEnhancing = false;
+                renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+            }
+        }
+
         function renderLectureDetail(lecture, transcriptions) {
+            state.currentLecture = lecture;
+            state.currentTranscriptions = transcriptions;
+
             const title = lecture.generated_title || lecture.lecture_name || 'Untitled session';
             const subtitle = lecture.lecture_name || 'Untitled session';
 
-            const fullTranscript = (lecture.full_transcript || '').trim();
-            const transcriptContent = fullTranscript
-                ? `<p class="text-sm leading-relaxed" style="color: var(--text-strong); white-space: pre-wrap;">${escapeHtml(fullTranscript)}</p>`
+            const originalTranscript = (lecture.full_transcript || '').trim();
+            const enhancedTranscript = (lecture.enhanced_full_transcript || '').trim();
+            const showEnhanced = state.viewMode === 'enhanced';
+            const activeTranscript = showEnhanced ? enhancedTranscript : originalTranscript;
+
+            const transcriptContent = activeTranscript
+                ? `<div class="text-sm leading-relaxed prose prose-invert max-w-none">${renderMarkdown(activeTranscript)}</div>`
                 : `
                     <div class="empty-state rounded-xl p-6 text-center">
-                        <p class="text-sm" style="color: var(--text-muted);">No transcript saved yet.</p>
-                        <p class="text-xs mt-2" style="color: var(--text-dim);">Record audio in the live session to populate this lecture.</p>
+                        <p class="text-sm" style="color: var(--text-muted);">${showEnhanced ? 'No enhanced transcript yet.' : 'No transcript saved yet.'}</p>
+                        <p class="text-xs mt-2" style="color: var(--text-dim);">${showEnhanced ? 'Generate an enhanced version to view it here.' : 'Record audio in the live session to populate this lecture.'}</p>
                     </div>
                 `;
 
@@ -293,18 +339,56 @@
                     </div>
                 </div>
                 <div class="space-y-3">
-                    <h4 class="text-lg">Transcript</h4>
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h4 class="text-lg">Transcript</h4>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="toggleTranscriptBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
+                                ${showEnhanced ? 'Show Original' : 'Show Enhanced'}
+                            </button>
+                            <button id="regenerateBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
+                                ${state.isEnhancing ? 'Enhancing...' : 'Regenerate Enhanced'}
+                            </button>
+                        </div>
+                    </div>
                     <div class="transcript-item rounded-xl p-4 max-h-[420px] overflow-y-auto">
                         ${transcriptContent}
                     </div>
                 </div>
             `;
+
+            const toggleBtn = document.getElementById('toggleTranscriptBtn');
+            const regenerateBtn = document.getElementById('regenerateBtn');
+
+            if (toggleBtn) {
+                toggleBtn.disabled = !enhancedTranscript;
+                toggleBtn.addEventListener('click', () => {
+                    state.viewMode = showEnhanced ? 'original' : 'enhanced';
+                    renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+                });
+            }
+
+            if (regenerateBtn) {
+                regenerateBtn.disabled = state.isEnhancing || !originalTranscript;
+                regenerateBtn.addEventListener('click', () => regenerateEnhanced(lecture.id));
+            }
         }
 
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text || '';
             return div.innerHTML;
+        }
+
+        function renderMarkdown(text) {
+            if (!text) return '';
+            if (typeof marked !== 'undefined') {
+                const rawHtml = marked.parse(text, { breaks: true, gfm: true });
+                if (typeof DOMPurify !== 'undefined') {
+                    return DOMPurify.sanitize(rawHtml);
+                }
+                return rawHtml;
+            }
+            return `<p>${escapeHtml(text)}</p>`;
         }
 
         function applySearchFilter() {
