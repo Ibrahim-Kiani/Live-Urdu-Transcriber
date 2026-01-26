@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lecture Archive · Urdu → English</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:opsz@8..72&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink-0: #0a0d14;
+            --ink-1: #101625;
+            --ink-2: #151d2f;
+            --ink-3: #202a3f;
+            --gold-1: #e7c873;
+            --gold-2: #d7a94b;
+            --mint-1: #7cd7c6;
+            --rose-1: #ff8f8f;
+            --text-strong: #f4f0e6;
+            --text-muted: #b7c0d1;
+            --text-dim: #7c869b;
+        }
+
+        * {
+            font-family: 'IBM Plex Sans', sans-serif;
+        }
+
+        body.app-shell {
+            background: radial-gradient(1200px 600px at 15% -10%, rgba(231, 200, 115, 0.12), transparent 60%),
+                        radial-gradient(900px 500px at 92% 8%, rgba(124, 215, 198, 0.10), transparent 55%),
+                        linear-gradient(180deg, var(--ink-0), var(--ink-1));
+            color: var(--text-strong);
+        }
+
+        body.app-shell::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+            pointer-events: none;
+            mix-blend-mode: soft-light;
+        }
+
+        h1, h2, h3, .display-font {
+            font-family: 'Instrument Serif', serif;
+            letter-spacing: 0.3px;
+        }
+
+        .app-header {
+            background: rgba(12, 16, 28, 0.85);
+            border-bottom: 1px solid rgba(231, 200, 115, 0.15);
+            backdrop-filter: blur(12px);
+        }
+
+        .panel {
+            background: linear-gradient(180deg, rgba(20, 28, 44, 0.96), rgba(14, 20, 34, 0.96));
+            border: 1px solid rgba(231, 200, 115, 0.16);
+            box-shadow: 0 20px 45px rgba(6, 8, 16, 0.45);
+        }
+
+        .panel-header {
+            border-bottom: 1px solid rgba(231, 200, 115, 0.12);
+        }
+
+        .soft-input {
+            background: rgba(19, 25, 38, 0.8);
+            border: 1px solid rgba(124, 134, 155, 0.4);
+            color: var(--text-strong);
+        }
+
+        .soft-input:focus {
+            border-color: rgba(231, 200, 115, 0.7);
+            box-shadow: 0 0 0 2px rgba(231, 200, 115, 0.15);
+        }
+
+        .lecture-card {
+            border: 1px solid rgba(124, 215, 198, 0.12);
+            background: rgba(16, 22, 36, 0.8);
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .lecture-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(231, 200, 115, 0.5);
+            box-shadow: 0 12px 24px rgba(10, 14, 24, 0.35);
+        }
+
+        .lecture-card.active {
+            border-color: rgba(231, 200, 115, 0.8);
+            box-shadow: 0 18px 30px rgba(10, 14, 24, 0.45);
+        }
+
+        .tag {
+            border: 1px solid rgba(231, 200, 115, 0.35);
+            color: var(--gold-1);
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+
+        .empty-state {
+            border: 1px dashed rgba(124, 134, 155, 0.4);
+        }
+
+        .ghost-link {
+            color: var(--gold-1);
+        }
+
+        .transcript-item {
+            background: rgba(15, 21, 34, 0.9);
+            border: 1px solid rgba(124, 215, 198, 0.18);
+        }
+    </style>
+</head>
+<body class="app-shell min-h-screen flex flex-col">
+    <header class="app-header px-4 py-4">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl flex items-center justify-center border border-amber-200/40 bg-gradient-to-br from-amber-100/10 to-amber-500/20">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl">Lecture Archive</h1>
+                    <p class="text-xs" style="color: var(--text-muted);">Browse past sessions and retrieve transcripts</p>
+                </div>
+            </div>
+            <a href="/" class="ghost-link text-xs uppercase tracking-[0.2em]">Live Session</a>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-6xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
+        <section class="panel rounded-2xl overflow-hidden">
+            <div class="panel-header px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg">All lectures</h2>
+                    <span id="lectureCount" class="tag text-[10px] px-2 py-1 rounded-full">0 sessions</span>
+                </div>
+                <div class="mt-3">
+                    <input id="searchInput" type="text" placeholder="Search titles or dates" class="soft-input w-full px-3 py-2 rounded-lg text-sm focus:outline-none">
+                </div>
+            </div>
+            <div id="lectureList" class="p-3 space-y-3 max-h-[70vh] overflow-y-auto"></div>
+        </section>
+
+        <section class="panel rounded-2xl overflow-hidden">
+            <div class="panel-header px-4 py-4">
+                <h2 class="text-lg">Selected lecture</h2>
+                <p class="text-xs" style="color: var(--text-dim);">Click any session from the left to view its transcript</p>
+            </div>
+            <div id="lectureDetail" class="p-4 space-y-4">
+                <div class="empty-state rounded-xl p-6 text-center">
+                    <p class="text-sm" style="color: var(--text-muted);">No lecture selected yet.</p>
+                    <p class="text-xs mt-2" style="color: var(--text-dim);">Choose a session to the left to see the complete transcript.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="errorToast" class="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-red-900/90 border border-red-700 text-red-200 px-4 py-3 rounded-xl shadow-lg transform translate-y-full opacity-0 transition-all duration-300 z-50">
+        <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <p class="font-medium">Error</p>
+                <p id="errorMessage" class="text-sm text-red-300 mt-1"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            lectures: [],
+            filtered: [],
+            selectedId: null
+        };
+
+        const elements = {
+            lectureList: document.getElementById('lectureList'),
+            lectureDetail: document.getElementById('lectureDetail'),
+            lectureCount: document.getElementById('lectureCount'),
+            searchInput: document.getElementById('searchInput'),
+            errorToast: document.getElementById('errorToast'),
+            errorMessage: document.getElementById('errorMessage')
+        };
+
+        function showError(message) {
+            elements.errorMessage.textContent = message;
+            elements.errorToast.classList.remove('translate-y-full', 'opacity-0');
+
+            setTimeout(() => {
+                elements.errorToast.classList.add('translate-y-full', 'opacity-0');
+            }, 5000);
+        }
+
+        function formatDate(iso) {
+            if (!iso) return '—';
+            return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+        }
+
+        function renderLectureList() {
+            elements.lectureList.innerHTML = '';
+            elements.lectureCount.textContent = `${state.filtered.length} sessions`;
+
+            if (state.filtered.length === 0) {
+                elements.lectureList.innerHTML = `
+                    <div class="empty-state rounded-xl p-4 text-center">
+                        <p class="text-sm" style="color: var(--text-muted);">No lectures found.</p>
+                        <p class="text-xs mt-2" style="color: var(--text-dim);">Try adjusting your search or record a new session.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            state.filtered.forEach((lecture) => {
+                const card = document.createElement('button');
+                card.className = 'lecture-card w-full text-left rounded-xl p-4 space-y-2';
+                if (lecture.id === state.selectedId) {
+                    card.classList.add('active');
+                }
+
+                const title = lecture.generated_title || lecture.lecture_name || 'Untitled session';
+                const subtitle = lecture.lecture_name ? lecture.lecture_name : 'Untitled session';
+                const createdAt = formatDate(lecture.created_at);
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-medium" style="color: var(--text-strong);">${escapeHtml(title)}</p>
+                        <span class="tag text-[9px] px-2 py-1 rounded-full">${lecture.ended_at ? 'completed' : 'active'}</span>
+                    </div>
+                    <p class="text-xs" style="color: var(--text-dim);">${escapeHtml(subtitle)}</p>
+                    <p class="text-xs" style="color: var(--text-muted);">${createdAt}</p>
+                `;
+
+                card.addEventListener('click', () => selectLecture(lecture.id));
+                elements.lectureList.appendChild(card);
+            });
+        }
+
+        async function selectLecture(lectureId) {
+            state.selectedId = lectureId;
+            renderLectureList();
+
+            try {
+                const response = await fetch(`/lecture/${lectureId}`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to load lecture');
+                }
+
+                const data = await response.json();
+                renderLectureDetail(data.lecture, data.transcriptions || []);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function renderLectureDetail(lecture, transcriptions) {
+            const title = lecture.generated_title || lecture.lecture_name || 'Untitled session';
+            const subtitle = lecture.lecture_name || 'Untitled session';
+
+            const fullTranscript = (lecture.full_transcript || '').trim();
+            const transcriptContent = fullTranscript
+                ? `<p class="text-sm leading-relaxed" style="color: var(--text-strong); white-space: pre-wrap;">${escapeHtml(fullTranscript)}</p>`
+                : `
+                    <div class="empty-state rounded-xl p-6 text-center">
+                        <p class="text-sm" style="color: var(--text-muted);">No transcript saved yet.</p>
+                        <p class="text-xs mt-2" style="color: var(--text-dim);">Record audio in the live session to populate this lecture.</p>
+                    </div>
+                `;
+
+            elements.lectureDetail.innerHTML = `
+                <div class="space-y-2">
+                    <span class="tag text-[10px] px-2 py-1 rounded-full">Lecture ID ${lecture.id}</span>
+                    <h3 class="text-2xl">${escapeHtml(title)}</h3>
+                    <p class="text-sm" style="color: var(--text-muted);">${escapeHtml(subtitle)}</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="panel rounded-xl p-3">
+                        <p class="text-[10px] uppercase tracking-[0.3em]" style="color: var(--text-dim);">Created</p>
+                        <p class="text-sm mt-2" style="color: var(--text-strong);">${formatDate(lecture.created_at)}</p>
+                    </div>
+                    <div class="panel rounded-xl p-3">
+                        <p class="text-[10px] uppercase tracking-[0.3em]" style="color: var(--text-dim);">Ended</p>
+                        <p class="text-sm mt-2" style="color: var(--text-strong);">${formatDate(lecture.ended_at)}</p>
+                    </div>
+                    <div class="panel rounded-xl p-3">
+                        <p class="text-[10px] uppercase tracking-[0.3em]" style="color: var(--text-dim);">Chunks</p>
+                        <p class="text-sm mt-2" style="color: var(--text-strong);">${transcriptions.length}</p>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <h4 class="text-lg">Transcript</h4>
+                    <div class="transcript-item rounded-xl p-4 max-h-[420px] overflow-y-auto">
+                        ${transcriptContent}
+                    </div>
+                </div>
+            `;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function applySearchFilter() {
+            const query = elements.searchInput.value.trim().toLowerCase();
+            if (!query) {
+                state.filtered = [...state.lectures];
+            } else {
+                state.filtered = state.lectures.filter((lecture) => {
+                    const title = (lecture.generated_title || lecture.lecture_name || '').toLowerCase();
+                    const createdAt = formatDate(lecture.created_at).toLowerCase();
+                    return title.includes(query) || createdAt.includes(query);
+                });
+            }
+
+            renderLectureList();
+        }
+
+        async function loadLectures() {
+            try {
+                const response = await fetch('/lectures');
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to load lectures');
+                }
+
+                const data = await response.json();
+                state.lectures = data.lectures || [];
+                state.filtered = [...state.lectures];
+                renderLectureList();
+
+                if (state.filtered.length > 0) {
+                    selectLecture(state.filtered[0].id);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        elements.searchInput.addEventListener('input', applySearchFilter);
+        loadLectures();
+    </script>
+</body>
+</html>

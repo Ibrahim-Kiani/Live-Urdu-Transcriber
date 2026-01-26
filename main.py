@@ -101,6 +101,12 @@ async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.get("/history", response_class=HTMLResponse)
+async def history(request: Request):
+    """Serve the lecture history page"""
+    return templates.TemplateResponse("history.html", {"request": request})
+
+
 @app.post("/lecture/create", response_model=StartRecordingResponse)
 async def create_lecture(request: CreateLectureRequest):
     """Create a new lecture session"""
@@ -387,6 +393,30 @@ async def get_lecture(lecture_id: int):
         error_msg = str(e)
         print(f"Get lecture error: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve lecture: {error_msg}")
+
+
+@app.get("/lectures")
+async def list_lectures():
+    """List all lectures for history view"""
+    try:
+        if not supabase_client:
+            raise HTTPException(status_code=500, detail="Database not configured")
+
+        response = supabase_client.table("lectures").select(
+            "id, lecture_name, created_at, ended_at, generated_title, updated_at"
+        ).order("created_at", desc=True).execute()
+
+        return {
+            "lectures": response.data or [],
+            "status": "success"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        print(f"List lectures error: {error_msg}")
+        raise HTTPException(status_code=500, detail=f"Failed to list lectures: {error_msg}")
 
 
 @app.get("/health")

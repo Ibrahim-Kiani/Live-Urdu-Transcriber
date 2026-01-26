@@ -7,10 +7,122 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:opsz@8..72&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --ink-0: #0a0d14;
+            --ink-1: #101625;
+            --ink-2: #151d2f;
+            --ink-3: #202a3f;
+            --gold-1: #e7c873;
+            --gold-2: #d7a94b;
+            --mint-1: #7cd7c6;
+            --rose-1: #ff8f8f;
+            --text-strong: #f4f0e6;
+            --text-muted: #b7c0d1;
+            --text-dim: #7c869b;
+        }
+
         * {
-            font-family: 'Inter', sans-serif;
+            font-family: 'IBM Plex Sans', sans-serif;
+        }
+
+        body.app-shell {
+            background: radial-gradient(1200px 600px at 20% -10%, rgba(231, 200, 115, 0.12), transparent 60%),
+                        radial-gradient(900px 500px at 90% 10%, rgba(124, 215, 198, 0.10), transparent 55%),
+                        linear-gradient(180deg, var(--ink-0), var(--ink-1));
+            color: var(--text-strong);
+        }
+
+        body.app-shell::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+            pointer-events: none;
+            mix-blend-mode: soft-light;
+        }
+
+        h1, .display-font {
+            font-family: 'Instrument Serif', serif;
+            letter-spacing: 0.3px;
+        }
+
+        .app-header {
+            background: rgba(12, 16, 28, 0.85);
+            border-bottom: 1px solid rgba(231, 200, 115, 0.15);
+            backdrop-filter: blur(12px);
+        }
+
+        .panel {
+            background: linear-gradient(180deg, rgba(20, 28, 44, 0.96), rgba(14, 20, 34, 0.96));
+            border: 1px solid rgba(231, 200, 115, 0.16);
+            box-shadow: 0 20px 45px rgba(6, 8, 16, 0.45);
+        }
+
+        .panel-header {
+            border-bottom: 1px solid rgba(231, 200, 115, 0.12);
+        }
+
+        .ghost-btn {
+            color: var(--text-dim);
+        }
+
+        .ghost-btn:hover {
+            color: var(--gold-1);
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, var(--gold-1), var(--gold-2));
+            color: #1b1a16;
+            box-shadow: 0 12px 30px rgba(231, 200, 115, 0.25);
+        }
+
+        .primary-btn:hover {
+            filter: brightness(1.05);
+        }
+
+        .danger-btn {
+            background: linear-gradient(135deg, #f07171, #d94a4a);
+            color: #160a0a;
+        }
+
+        .soft-input {
+            background: rgba(19, 25, 38, 0.8);
+            border: 1px solid rgba(124, 134, 155, 0.4);
+            color: var(--text-strong);
+        }
+
+        .soft-input:focus {
+            border-color: rgba(231, 200, 115, 0.7);
+            box-shadow: 0 0 0 2px rgba(231, 200, 115, 0.15);
+        }
+
+        .status-pill {
+            background: rgba(32, 42, 63, 0.8);
+            color: var(--text-muted);
+            border: 1px solid rgba(231, 200, 115, 0.2);
+        }
+
+        .status-pill.recording {
+            background: rgba(217, 74, 74, 0.2);
+            color: #ffd3d3;
+            border-color: rgba(255, 143, 143, 0.5);
+        }
+
+        .subtitle-item {
+            background: rgba(18, 26, 40, 0.8);
+            border: 1px solid rgba(124, 215, 198, 0.18);
+        }
+
+        .microphone-btn {
+            background: linear-gradient(140deg, var(--mint-1), #4aa3c1);
+            box-shadow: 0 18px 35px rgba(76, 168, 196, 0.25);
+        }
+
+        .microphone-btn.recording {
+            background: linear-gradient(135deg, #ff8f8f, #e16868);
+            box-shadow: 0 18px 35px rgba(217, 74, 74, 0.3);
         }
         
         /* Custom scrollbar */
@@ -19,17 +131,17 @@
         }
         
         .subtitle-container::-webkit-scrollbar-track {
-            background: #1f2937;
+            background: rgba(20, 28, 44, 0.9);
             border-radius: 3px;
         }
         
         .subtitle-container::-webkit-scrollbar-thumb {
-            background: #4b5563;
+            background: rgba(231, 200, 115, 0.45);
             border-radius: 3px;
         }
         
         .subtitle-container::-webkit-scrollbar-thumb:hover {
-            background: #6b7280;
+            background: rgba(231, 200, 115, 0.7);
         }
         
         /* Pulse animation for recording */
@@ -84,23 +196,26 @@
         .dot-3 { animation: bounce 1.4s infinite 0.4s; }
     </style>
 </head>
-<body class="bg-gray-900 min-h-screen flex flex-col">
+    <body class="app-shell min-h-screen flex flex-col">
     <!-- Header -->
-    <header class="bg-gray-800 border-b border-gray-700 px-4 py-4">
+    <header class="app-header px-4 py-4">
         <div class="max-w-2xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                <div class="w-11 h-11 rounded-2xl flex items-center justify-center border border-amber-200/40 bg-gradient-to-br from-amber-100/10 to-amber-500/20">
                     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-white font-semibold text-lg">Urdu → English</h1>
-                    <p class="text-gray-400 text-xs">Real-time Translation</p>
+                    <h1 class="text-white text-xl">Urdu → English</h1>
+                    <p class="text-xs" style="color: var(--text-muted);">Real-time Translation</p>
                 </div>
             </div>
-            <div id="statusBadge" class="px-3 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
-                Ready
+            <div class="flex items-center gap-3">
+                <a href="/history" class="text-xs uppercase tracking-[0.2em]" style="color: var(--gold-1);">Archive</a>
+                <div id="statusBadge" class="status-pill px-3 py-1 rounded-full text-xs font-medium">
+                    Ready
+                </div>
             </div>
         </div>
     </header>
@@ -108,10 +223,10 @@
     <!-- Main Content -->
     <main class="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4">
         <!-- Subtitles Display Area -->
-        <div class="flex-1 bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden flex flex-col min-h-[300px]">
-            <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-                <span class="text-gray-400 text-sm font-medium">Translations</span>
-                <button id="clearBtn" class="text-gray-500 hover:text-gray-300 text-xs transition-colors">
+        <div class="panel flex-1 rounded-2xl overflow-hidden flex flex-col min-h-[300px]">
+            <div class="panel-header px-4 py-3 flex items-center justify-between">
+                <span class="text-sm font-medium" style="color: var(--text-muted);">Translations</span>
+                <button id="clearBtn" class="ghost-btn text-xs transition-colors">
                     Clear All
                 </button>
             </div>
@@ -119,25 +234,25 @@
             <div id="subtitleContainer" class="subtitle-container flex-1 overflow-y-auto p-4 space-y-3">
                 <!-- Empty State -->
                 <div id="emptyState" class="flex flex-col items-center justify-center h-full text-center py-8">
-                    <div class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mb-4" style="background: rgba(32, 42, 63, 0.7); border: 1px solid rgba(231, 200, 115, 0.2);">
                         <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                         </svg>
                     </div>
-                    <p class="text-gray-400 text-sm">Your translations will appear here</p>
-                    <p class="text-gray-500 text-xs mt-1">Tap the button below to start speaking in Urdu</p>
+                    <p class="text-sm" style="color: var(--text-muted);">Your translations will appear here</p>
+                    <p class="text-xs mt-1" style="color: var(--text-dim);">Tap the button below to start speaking in Urdu</p>
                 </div>
                 
                 <!-- Subtitles will be appended here -->
             </div>
             
             <!-- Processing Indicator -->
-            <div id="processingIndicator" class="hidden px-4 py-3 border-t border-gray-700 bg-gray-750">
-                <div class="flex items-center gap-2 text-emerald-400">
+            <div id="processingIndicator" class="hidden px-4 py-3" style="border-top: 1px solid rgba(231, 200, 115, 0.12);">
+                <div class="flex items-center gap-2" style="color: var(--gold-1);">
                     <div class="flex gap-1">
-                        <span class="w-2 h-2 bg-emerald-400 rounded-full dot-1"></span>
-                        <span class="w-2 h-2 bg-emerald-400 rounded-full dot-2"></span>
-                        <span class="w-2 h-2 bg-emerald-400 rounded-full dot-3"></span>
+                        <span class="w-2 h-2 rounded-full dot-1" style="background: var(--gold-1);"></span>
+                        <span class="w-2 h-2 rounded-full dot-2" style="background: var(--gold-1);"></span>
+                        <span class="w-2 h-2 rounded-full dot-3" style="background: var(--gold-1);"></span>
                     </div>
                     <span class="text-sm">Translating...</span>
                 </div>
@@ -145,30 +260,30 @@
         </div>
 
         <!-- Volume Visualizer -->
-        <div id="volumeVisualizer" class="hidden h-16 bg-gray-800 rounded-xl border border-gray-700 p-3">
+        <div id="volumeVisualizer" class="panel hidden h-16 rounded-xl p-3">
             <div class="flex items-end justify-center gap-1 h-full">
                 <!-- Volume bars will be generated by JS -->
             </div>
         </div>
 
         <!-- Control Panel -->
-        <div class="bg-gray-800 rounded-2xl border border-gray-700 p-4">
+        <div class="panel rounded-2xl p-4">
             <!-- Lecture Setup (Before Recording) -->
             <div id="lectureSetup" class="flex flex-col gap-4">
                 <div>
-                    <label class="block text-gray-400 text-sm font-medium mb-2">Lecture/Session Name</label>
+                    <label class="block text-sm font-medium mb-2" style="color: var(--text-muted);">Lecture/Session Name</label>
                     <input 
                         id="lectureNameInput" 
                         type="text" 
                         placeholder="e.g., Physics 101 - Chapter 5"
-                        class="w-full px-4 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                        class="soft-input w-full px-4 py-2 rounded-lg placeholder-gray-500 focus:outline-none transition-colors"
                     >
-                    <p class="text-gray-500 text-xs mt-1">Give your recording a name for better organization</p>
+                    <p class="text-xs mt-1" style="color: var(--text-dim);">Give your recording a name for better organization</p>
                 </div>
                 
                 <button 
                     id="startSessionBtn"
-                    class="w-full px-6 py-3 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-medium transition-all duration-300 active:scale-95"
+                    class="primary-btn w-full px-6 py-3 rounded-lg font-medium transition-all duration-300 active:scale-95"
                 >
                     Start Recording Session
                 </button>
@@ -180,7 +295,7 @@
                     <!-- Pulse ring for recording state -->
                     <div id="pulseRing" class="hidden absolute inset-0 bg-red-500 rounded-full pulse-ring opacity-50"></div>
                     
-                    <button id="recordBtn" class="relative w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/30 transition-all duration-300 flex items-center justify-center active:scale-95">
+                    <button id="recordBtn" class="microphone-btn relative w-20 h-20 rounded-full text-white transition-all duration-300 flex items-center justify-center active:scale-95">
                         <svg id="micIcon" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
                         </svg>
@@ -191,28 +306,28 @@
                 </div>
                 
                 <div class="text-center w-full">
-                    <p id="recordingStatus" class="text-gray-300 font-medium">Tap to Start Recording</p>
-                    <p id="recordingTimer" class="text-gray-500 text-sm mt-1">00:00</p>
-                    <p id="lectureNameDisplay" class="text-emerald-400 text-xs mt-2 font-medium"></p>
+                    <p id="recordingStatus" class="font-medium" style="color: var(--text-strong);">Tap to Start Recording</p>
+                    <p id="recordingTimer" class="text-sm mt-1" style="color: var(--text-dim);">00:00</p>
+                    <p id="lectureNameDisplay" class="text-xs mt-2 font-medium" style="color: var(--gold-1);"></p>
                 </div>
                 
                 <!-- End Session Button -->
                 <button 
                     id="endSessionBtn"
-                    class="w-full px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition-colors"
+                    class="danger-btn w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                     End Session & Generate Title
                 </button>
 
                 <!-- Settings Row -->
-                <div class="w-full pt-4 border-t border-gray-700 flex items-center justify-between text-sm">
-                    <div class="flex items-center gap-2 text-gray-400">
+                <div class="w-full pt-4 flex items-center justify-between text-sm" style="border-top: 1px solid rgba(231, 200, 115, 0.12);">
+                    <div class="flex items-center gap-2" style="color: var(--text-muted);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <span>Auto-detects speech pauses</span>
                     </div>
-                    <div id="chunkCounter" class="text-gray-500">
+                    <div id="chunkCounter" style="color: var(--text-dim);">
                         Chunks: <span id="chunkCount">0</span>
                     </div>
                 </div>
@@ -345,7 +460,8 @@
             
             for (let i = 0; i < 20; i++) {
                 const bar = document.createElement('div');
-                bar.className = 'volume-bar w-2 bg-gradient-to-t from-emerald-500 to-teal-400 rounded-full';
+                bar.className = 'volume-bar w-2 rounded-full';
+                bar.style.background = 'linear-gradient(180deg, rgba(231, 200, 115, 0.95), rgba(124, 215, 198, 0.85))';
                 bar.style.height = '4px';
                 container.appendChild(bar);
             }
@@ -740,18 +856,15 @@
         // ============================================
         function updateUIForRecording(isRecording) {
             if (isRecording) {
-                elements.recordBtn.classList.remove('from-emerald-500', 'to-teal-600', 'hover:from-emerald-400', 'hover:to-teal-500', 'shadow-emerald-500/30');
-                elements.recordBtn.classList.add('from-red-500', 'to-rose-600', 'hover:from-red-400', 'hover:to-rose-500', 'shadow-red-500/30');
+                elements.recordBtn.classList.add('recording');
                 elements.micIcon.classList.add('hidden');
                 elements.stopIcon.classList.remove('hidden');
                 elements.pulseRing.classList.remove('hidden');
                 elements.recordingStatus.textContent = 'Recording... Speak in Urdu';
                 elements.statusBadge.textContent = 'Recording';
-                elements.statusBadge.classList.remove('bg-gray-700', 'text-gray-300');
-                elements.statusBadge.classList.add('bg-red-900', 'text-red-300');
+                elements.statusBadge.classList.add('recording');
             } else {
-                elements.recordBtn.classList.add('from-emerald-500', 'to-teal-600', 'hover:from-emerald-400', 'hover:to-teal-500', 'shadow-emerald-500/30');
-                elements.recordBtn.classList.remove('from-red-500', 'to-rose-600', 'hover:from-red-400', 'hover:to-rose-500', 'shadow-red-500/30');
+                elements.recordBtn.classList.remove('recording');
                 elements.micIcon.classList.remove('hidden');
                 elements.stopIcon.classList.add('hidden');
                 elements.pulseRing.classList.add('hidden');
@@ -759,8 +872,7 @@
                 elements.recordingTimer.classList.add('hidden');
                 elements.recordingTimer.textContent = '00:00';
                 elements.statusBadge.textContent = 'Ready';
-                elements.statusBadge.classList.add('bg-gray-700', 'text-gray-300');
-                elements.statusBadge.classList.remove('bg-red-900', 'text-red-300');
+                elements.statusBadge.classList.remove('recording');
                 elements.volumeVisualizer.classList.add('hidden');
             }
         }
