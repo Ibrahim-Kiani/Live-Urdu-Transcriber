@@ -19,6 +19,7 @@ from starlette.requests import Request
 from dotenv import load_dotenv
 from groq import Groq
 import httpx
+import random
 
 try:
     from supabase import create_client, Client
@@ -77,7 +78,7 @@ templates_dir = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
 
 # Initialize Groq client
-groq_api_key = os.getenv("GROQ_API_KEY")
+groq_api_key = os.getenv(random.choice(["GROQ_API_KEY","GROQ2_API_KEY"]))
 if not groq_api_key:
     print("⚠️  Warning: GROQ_API_KEY not found in environment variables!")
 
@@ -163,8 +164,8 @@ async def enhance_transcript(title: str, raw_transcript: str) -> Optional[str]:
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Serve the main application page"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    """Serve the lecture history page as the landing page"""
+    return templates.TemplateResponse("history.html", {"request": request})
 
 
 @app.get("/history", response_class=HTMLResponse)
