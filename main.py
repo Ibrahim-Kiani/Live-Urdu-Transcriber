@@ -32,8 +32,10 @@ load_dotenv()
 
 # Constants
 TRANSLATION_MODEL = "whisper-large-v3"
+TRANSCRIPTION_MODEL = "whisper-large-v3"
 TITLE_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 ENHANCEMENT_MODEL = "tngtech/tng-r1t-chimera:free"
+REFINED_TRANSLATION_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct"
 
 # Pydantic models for request/response
 class CreateLectureRequest(BaseModel):
@@ -53,6 +55,7 @@ class EnhanceLectureRequest(BaseModel):
 
 class TranslationResponse(BaseModel):
     text: str
+    refined_text: Optional[str] = None
     status: str
     lecture_id: Optional[int] = None
     chunk_number: Optional[int] = None
@@ -110,6 +113,41 @@ lectures_state = {}
 async def enhance_transcript(title: str, raw_transcript: str) -> Optional[str]:
     """Use OpenRouter to refine the transcript."""
     if not openrouter_api_key:
+        return None
+
+
+def refine_urdu_transcript(raw_urdu_text: str) -> Optional[str]:
+    """Use Groq LLM to translate Urdu transcript into refined English."""
+    if not groq_client:
+        return None
+
+    system_prompt = (
+        "You are an expert Urdu-to-English interpreter specializing in technical discourse. "
+        "You will receive a raw transcription in Urdu. Your goal is to provide a fluent, grammatically correct English translation.\n\n"
+        "The Context: The speaker is discussing [e.g., Data Science and Data Mining].\n\n"
+        "Your Tasks:\n\n"
+        "Literal vs. Intentional: If the raw text contains \"nonsensical\" phrases or poor grammar, "
+        "infer the speaker's intent based on the surrounding technical context.\n\n"
+        "Smoothing: Fix run-on sentences and ensure the flow sounds like a professional lecture or discussion.\n\n"
+        "Output: Provide only the refined English translation."
+    )
+
+    user_prompt = f"Input (Urdu Transcription): {raw_urdu_text}"
+
+    try:
+        response = groq_client.chat.completions.create(
+            model=REFINED_TRANSLATION_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2,
+            max_tokens=1200
+        )
+        content = response.choices[0].message.content
+        return content.strip() if content else None
+    except Exception as e:
+        print(f"Refined translation error: {e}")
         return None
 
     prompt = (
@@ -264,7 +302,7 @@ async def translate_audio(
             temp_file_path = temp_file.name
         
         try:
-            # Call Groq for translation
+            # Call Groq for translation (direct Urdu -> English)
             with open(temp_file_path, "rb") as audio_file:
                 translation = groq_client.audio.translations.create(
                     model=TRANSLATION_MODEL,
@@ -273,6 +311,17 @@ async def translate_audio(
                 )
             
             translated_text = str(translation).strip()
+
+            # Call Groq for transcription (Urdu) -> LLM refinement to English
+            with open(temp_file_path, "rb") as audio_file:
+                transcription = groq_client.audio.transcriptions.create(
+                    model=TRANSCRIPTION_MODEL,
+                    file=audio_file,
+                    response_format="text"
+                )
+
+            urdu_transcript = str(transcription).strip()
+            refined_text = refine_urdu_transcript(urdu_transcript) if urdu_transcript else None
             
             print(f"✅ Translated: {translated_text[:100]}...")
             
@@ -285,6 +334,7 @@ async def translate_audio(
                         "lecture_id": lecture_id_int,
                         "chunk_number": chunk_number_int or 0,
                         "english_text": translated_text,
+                        "is_gpt_refined": False,
                         "created_at": datetime.now(timezone.utc).isoformat(),
                         "timestamps": {
                             "recorded_at": datetime.now(timezone.utc).isoformat()
@@ -293,7 +343,7 @@ async def translate_audio(
                     
                     print(f"✅ Saved to database successfully: {result.data}")
                     
-                    # Update lecture state
+                    # Update lecture state (original translation only)
                     if lecture_id_int in lectures_state:
                         lectures_state[lecture_id_int]["chunk_count"] += 1
                         lectures_state[lecture_id_int]["full_transcript"] += " " + translated_text
@@ -308,8 +358,27 @@ async def translate_audio(
                 if not lecture_id_int:
                     print("⚠️  No lecture_id provided, skipping database save")
             
+            # Save refined transcript if available
+            if lecture_id_int and supabase_client and refined_text:
+                try:
+                    supabase_client.table("transcriptions").insert({
+                        "lecture_id": lecture_id_int,
+                        "chunk_number": chunk_number_int or 0,
+                        "english_text": refined_text,
+                        "is_gpt_refined": True,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "timestamps": {
+                            "recorded_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    }).execute()
+                except Exception as db_error:
+                    print(f"❌ Refined save error: {db_error}")
+                    import traceback
+                    traceback.print_exc()
+
             return TranslationResponse(
                 text=translated_text,
+                refined_text=refined_text,
                 status="success",
                 lecture_id=lecture_id_int,
                 chunk_number=chunk_number_int
@@ -358,7 +427,7 @@ async def end_recording(request: EndRecordingRequest):
         print(f"🔍 Fetching transcriptions from database for lecture {lecture_id}")
         transcript_response = supabase_client.table("transcriptions").select(
             "english_text"
-        ).eq("lecture_id", lecture_id).order("chunk_number").execute()
+        ).eq("lecture_id", lecture_id).eq("is_gpt_refined", False).order("chunk_number").execute()
         
         print(f"📝 Found {len(transcript_response.data) if transcript_response.data else 0} transcriptions in database")
         
@@ -457,10 +526,21 @@ async def get_lecture(lecture_id: int):
         transcriptions_response = supabase_client.table("transcriptions").select(
             "*"
         ).eq("lecture_id", lecture_id).order("chunk_number").execute()
+
+        all_transcriptions = transcriptions_response.data or []
+        original_transcriptions = [item for item in all_transcriptions if not item.get("is_gpt_refined")]
+        refined_transcriptions = [item for item in all_transcriptions if item.get("is_gpt_refined")]
+
+        refined_full_transcript = " ".join([
+            item.get("english_text", "") for item in refined_transcriptions if item.get("english_text")
+        ]).strip()
+
+        lecture_response.data["refined_full_transcript"] = refined_full_transcript
         
         return {
             "lecture": lecture_response.data,
-            "transcriptions": transcriptions_response.data,
+            "transcriptions": original_transcriptions,
+            "refined_transcriptions": refined_transcriptions,
             "status": "success"
         }
         
