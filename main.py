@@ -114,42 +114,6 @@ async def enhance_transcript(title: str, raw_transcript: str) -> Optional[str]:
     """Use OpenRouter to refine the transcript."""
     if not openrouter_api_key:
         return None
-
-
-def refine_urdu_transcript(raw_urdu_text: str) -> Optional[str]:
-    """Use Groq LLM to translate Urdu transcript into refined English."""
-    if not groq_client:
-        return None
-
-    system_prompt = (
-        "You are an expert Urdu-to-English interpreter specializing in technical discourse. "
-        "You will receive a raw transcription in Urdu. Your goal is to provide a fluent, grammatically correct English translation.\n\n"
-        "The Context: The speaker is discussing [e.g., Data Science and Data Mining].\n\n"
-        "Your Tasks:\n\n"
-        "Literal vs. Intentional: If the raw text contains \"nonsensical\" phrases or poor grammar, "
-        "infer the speaker's intent based on the surrounding technical context.\n\n"
-        "Smoothing: Fix run-on sentences and ensure the flow sounds like a professional lecture or discussion.\n\n"
-        "Output: Provide only the refined English translation."
-    )
-
-    user_prompt = f"Input (Urdu Transcription): {raw_urdu_text}"
-
-    try:
-        response = groq_client.chat.completions.create(
-            model=REFINED_TRANSLATION_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.2,
-            max_tokens=1200
-        )
-        content = response.choices[0].message.content
-        return content.strip() if content else None
-    except Exception as e:
-        print(f"Refined translation error: {e}")
-        return None
-
     prompt = (
         "Role: You are a Technical Transcript Editor specializing in Machine Learning and Computer Science lectures.\n"
         "Task: Your goal is to take a raw, machine-translated transcript from an Urdu-to-English system and "
@@ -197,6 +161,41 @@ def refine_urdu_transcript(raw_urdu_text: str) -> Optional[str]:
             return content.strip() if content else None
     except Exception as e:
         print(f"Enhancement error: {e}")
+        return None
+
+
+def refine_urdu_transcript(raw_urdu_text: str) -> Optional[str]:
+    """Use Groq LLM to translate Urdu transcript into refined English."""
+    if not groq_client:
+        return None
+
+    system_prompt = (
+        "You are an expert Urdu-to-English interpreter specializing in technical discourse. "
+        "You will receive a raw transcription in Urdu. Your goal is to provide a fluent, grammatically correct English translation.\n\n"
+        "The Context: The speaker is discussing [e.g., Data Science and Data Mining].\n\n"
+        "Your Tasks:\n\n"
+        "Literal vs. Intentional: If the raw text contains \"nonsensical\" phrases or poor grammar, "
+        "infer the speaker's intent based on the surrounding technical context.\n\n"
+        "Smoothing: Fix run-on sentences and ensure the flow sounds like a professional lecture or discussion.\n\n"
+        "Output: Provide only the refined English translation."
+    )
+
+    user_prompt = f"Input (Urdu Transcription): {raw_urdu_text}"
+
+    try:
+        response = groq_client.chat.completions.create(
+            model=REFINED_TRANSLATION_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2,
+            max_tokens=1200
+        )
+        content = response.choices[0].message.content
+        return content.strip() if content else None
+    except Exception as e:
+        print(f"Refined translation error: {e}")
         return None
 
 
