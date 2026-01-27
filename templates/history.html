@@ -334,9 +334,9 @@
                 }
 
                 const data = await response.json();
-                if (!data.lecture.enhanced_full_transcript) {
-                    state.viewMode = 'original';
-                }
+                const hasEnhanced = !!data.lecture.enhanced_full_transcript;
+                const hasRefined = !!data.lecture.refined_full_transcript;
+                state.viewMode = hasEnhanced ? 'enhanced' : (hasRefined ? 'refined' : 'original');
                 renderLectureDetail(data.lecture, data.transcriptions || []);
             } catch (error) {
                 showError(error.message);
@@ -384,15 +384,24 @@
 
             const originalTranscript = (lecture.full_transcript || '').trim();
             const enhancedTranscript = (lecture.enhanced_full_transcript || '').trim();
+            const refinedTranscript = (lecture.refined_full_transcript || '').trim();
             const showEnhanced = state.viewMode === 'enhanced';
-            const activeTranscript = showEnhanced ? enhancedTranscript : originalTranscript;
+            const showRefined = state.viewMode === 'refined';
+            const activeTranscript = showRefined
+                ? refinedTranscript
+                : (showEnhanced ? enhancedTranscript : originalTranscript);
+
+            let toggleLabel = showEnhanced ? 'Show Original' : 'Show Summarized';
+            if (showRefined) {
+                toggleLabel = enhancedTranscript ? 'Show Enhanced' : 'Show Original';
+            }
 
             const transcriptContent = activeTranscript
                 ? `<div class="text-sm leading-relaxed prose prose-invert max-w-none">${renderMarkdown(activeTranscript)}</div>`
                 : `
                     <div class="empty-state rounded-xl p-6 text-center">
-                        <p class="text-sm" style="color: var(--text-muted);">${showEnhanced ? 'No enhanced transcript yet.' : 'No transcript saved yet.'}</p>
-                        <p class="text-xs mt-2" style="color: var(--text-dim);">${showEnhanced ? 'Generate an enhanced version to view it here.' : 'Record audio in the live session to populate this lecture.'}</p>
+                        <p class="text-sm" style="color: var(--text-muted);">${showRefined ? 'No refined transcript yet.' : (showEnhanced ? 'No enhanced transcript yet.' : 'No transcript saved yet.')}</p>
+                        <p class="text-xs mt-2" style="color: var(--text-dim);">${showRefined ? 'Record audio in the live session to populate the refined transcript.' : (showEnhanced ? 'Generate an enhanced version to view it here.' : 'Record audio in the live session to populate this lecture.')}</p>
                     </div>
                 `;
 
@@ -421,10 +430,13 @@
                         <h4 class="text-lg">Transcript</h4>
                         <div class="flex flex-wrap gap-2">
                             <button id="toggleTranscriptBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
-                                ${showEnhanced ? 'Show Original' : 'Show Enhanced'}
+                                ${toggleLabel}
+                            </button>
+                            <button id="showRefinedBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
+                                Show Refined
                             </button>
                             <button id="regenerateBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
-                                ${state.isEnhancing ? 'Enhancing...' : 'Regenerate Enhanced'}
+                                ${state.isEnhancing ? 'Summarizing...' : 'Regenerate Summary'}
                             </button>
                         </div>
                     </div>
@@ -435,12 +447,25 @@
             `;
 
             const toggleBtn = document.getElementById('toggleTranscriptBtn');
+            const showRefinedBtn = document.getElementById('showRefinedBtn');
             const regenerateBtn = document.getElementById('regenerateBtn');
 
             if (toggleBtn) {
-                toggleBtn.disabled = !enhancedTranscript;
+                toggleBtn.disabled = !enhancedTranscript && !originalTranscript;
                 toggleBtn.addEventListener('click', () => {
-                    state.viewMode = showEnhanced ? 'original' : 'enhanced';
+                    if (showRefined) {
+                        state.viewMode = enhancedTranscript ? 'enhanced' : 'original';
+                    } else {
+                        state.viewMode = showEnhanced ? 'original' : 'enhanced';
+                    }
+                    renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+                });
+            }
+
+            if (showRefinedBtn) {
+                showRefinedBtn.disabled = !refinedTranscript;
+                showRefinedBtn.addEventListener('click', () => {
+                    state.viewMode = 'refined';
                     renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
                 });
             }

@@ -19,6 +19,7 @@ CREATE TABLE transcriptions (
   chunk_number INTEGER NOT NULL,
   urdu_audio_metadata TEXT,
   english_text TEXT NOT NULL,
+  is_gpt_refined BOOLEAN NOT NULL DEFAULT FALSE,
   timestamps JSONB DEFAULT '{}'::jsonb,
   confidence_score FLOAT,
   processing_time_ms INTEGER,
