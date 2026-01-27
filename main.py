@@ -33,7 +33,7 @@ load_dotenv()
 # Constants
 TRANSLATION_MODEL = "whisper-large-v3"
 TRANSCRIPTION_MODEL = "whisper-large-v3"
-TITLE_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+TITLE_MODEL = "llama-3.3-70b-versatile"
 ENHANCEMENT_MODEL = "tngtech/tng-r1t-chimera:free"
 REFINED_TRANSLATION_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct"
 
@@ -555,6 +555,46 @@ async def get_lecture(lecture_id: int):
         error_msg = str(e)
         print(f"Get lecture error: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve lecture: {error_msg}")
+
+
+@app.delete("/lecture/{lecture_id}/chunk/{chunk_number}")
+async def delete_transcription_chunk(lecture_id: int, chunk_number: int):
+    """Delete a specific chunk (original + refined) from a lecture"""
+    try:
+        if not supabase_client:
+            raise HTTPException(status_code=500, detail="Database not configured")
+
+        delete_response = supabase_client.table("transcriptions").delete().eq(
+            "lecture_id", lecture_id
+        ).eq("chunk_number", chunk_number).execute()
+
+        if lecture_id in lectures_state:
+            try:
+                transcript_response = supabase_client.table("transcriptions").select(
+                    "english_text"
+                ).eq("lecture_id", lecture_id).eq("is_gpt_refined", False).order("chunk_number").execute()
+
+                remaining = transcript_response.data or []
+                lectures_state[lecture_id]["chunk_count"] = len(remaining)
+                lectures_state[lecture_id]["full_transcript"] = " ".join(
+                    [item.get("english_text", "") for item in remaining if item.get("english_text")]
+                ).strip()
+            except Exception as state_error:
+                print(f"⚠️  Failed to refresh lecture state after delete: {state_error}")
+
+        return {
+            "lecture_id": lecture_id,
+            "chunk_number": chunk_number,
+            "deleted": len(delete_response.data or []),
+            "status": "success"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Delete chunk error: {error_msg}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete chunk: {error_msg}")
 
 
 @app.post("/lecture/{lecture_id}/enhance")

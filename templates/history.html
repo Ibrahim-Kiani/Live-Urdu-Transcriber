@@ -227,7 +227,7 @@
             lectures: [],
             filtered: [],
             selectedId: null,
-            viewMode: 'enhanced',
+            viewMode: 'original',
             isEnhancing: false
         };
 
@@ -336,7 +336,8 @@
                 const data = await response.json();
                 const hasEnhanced = !!data.lecture.enhanced_full_transcript;
                 const hasRefined = !!data.lecture.refined_full_transcript;
-                state.viewMode = hasEnhanced ? 'enhanced' : (hasRefined ? 'refined' : 'original');
+                const hasOriginal = !!data.lecture.full_transcript;
+                state.viewMode = hasOriginal ? 'original' : (hasRefined ? 'refined' : (hasEnhanced ? 'enhanced' : 'original'));
                 renderLectureDetail(data.lecture, data.transcriptions || []);
             } catch (error) {
                 showError(error.message);
