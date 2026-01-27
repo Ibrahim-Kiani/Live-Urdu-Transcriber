@@ -391,7 +391,7 @@
                 ? refinedTranscript
                 : (showEnhanced ? enhancedTranscript : originalTranscript);
 
-            let toggleLabel = showEnhanced ? 'Show Original' : 'Show Enhanced';
+            let toggleLabel = showEnhanced ? 'Show Original' : 'Show Summarized';
             if (showRefined) {
                 toggleLabel = enhancedTranscript ? 'Show Enhanced' : 'Show Original';
             }
@@ -436,7 +436,7 @@
                                 Show Refined
                             </button>
                             <button id="regenerateBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
-                                ${state.isEnhancing ? 'Enhancing...' : 'Regenerate Enhanced'}
+                                ${state.isEnhancing ? 'Summarizing...' : 'Regenerate Summary'}
                             </button>
                         </div>
                     </div>
