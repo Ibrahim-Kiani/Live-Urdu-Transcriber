@@ -1,3 +1,62 @@
+# Deployment Guide
+
+## Vercel Deployment (Recommended)
+
+This project is configured to deploy to Vercel using `vercel.json` and the Python runtime.
+
+### Prerequisites
+- GitHub repository with your code pushed
+- Vercel account (free at https://vercel.com)
+- Groq API key (free at https://console.groq.com)
+
+### 1. Push Your Code to GitHub
+
+```bash
+cd d:\transcribe\Live-Urdu-Transcriber
+git add .
+git commit -m "Add Vercel deployment config"
+git push
+```
+
+### 2. Import Project in Vercel
+
+1. Go to https://vercel.com
+2. Click **Add New** → **Project**
+3. Import your GitHub repository
+4. Framework preset: **Other**
+5. Root Directory: **leave empty**
+
+### 3. Configure Environment Variables
+
+Add the following Environment Variables in Vercel:
+
+| Key | Value |
+|-----|-------|
+| `GROQ_API_KEY` | Your Groq API key |
+| `OPENROUTER_API_KEY` | (Optional) OpenRouter key for transcript enhancement |
+| `SUPABASE_URL` | (Optional) Supabase URL |
+| `SUPABASE_KEY` | (Optional) Supabase service key |
+
+### 4. Deploy
+
+Click **Deploy**. Vercel will:
+- Install dependencies from `requirements.txt`
+- Build the Python serverless function at `api/index.py`
+- Route all requests to the FastAPI app
+
+### 5. Verify
+
+Open your deployed URL and visit:
+- `/` for the UI
+- `/health` for configuration status
+
+### Files Added for Vercel
+
+- `api/index.py` → Vercel entrypoint exporting the FastAPI `app`
+- `vercel.json` → Build + routing config
+
+---
+
 # Render Deployment Guide
 
 ## Quick Start
