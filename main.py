@@ -174,6 +174,12 @@ async def history(request: Request):
     return templates.TemplateResponse("history.html", {"request": request})
 
 
+@app.get("/live", response_class=HTMLResponse)
+async def live(request: Request):
+    """Serve the live recording page"""
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
 @app.post("/lecture/create", response_model=StartRecordingResponse)
 async def create_lecture(request: CreateLectureRequest):
     """Create a new lecture session"""
