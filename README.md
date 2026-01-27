@@ -33,7 +33,7 @@ A mobile-responsive web application that records live audio from the user's micr
 - **Audio**: Web Audio API, MediaRecorder API
 - **Deployment**: Render, Docker-ready
 
-## Setup
+##  Setup
 
 ### Prerequisites
 - Python 3.9+
