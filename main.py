@@ -332,30 +332,76 @@ async def translate_audio(
             
             print(f"✅ Translated: {translated_text[:100]}...")
             
+            response_status = "success"
+            response_lecture_id = lecture_id_int
+            response_chunk_number = chunk_number_int
+            skip_save_reason = None
+            actual_chunk_number = chunk_number_int
+
             # Save to database if lecture_id provided
             if lecture_id_int and supabase_client and translated_text:
                 try:
-                    print(f"💾 Saving to database - lecture_id: {lecture_id_int}, chunk: {chunk_number_int}")
-                    
-                    result = supabase_client.table("transcriptions").insert({
-                        "lecture_id": lecture_id_int,
-                        "chunk_number": chunk_number_int or 0,
-                        "english_text": translated_text,
-                        "is_gpt_refined": False,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                        "timestamps": {
-                            "recorded_at": datetime.now(timezone.utc).isoformat()
-                        }
-                    }).execute()
-                    
-                    print(f"✅ Saved to database successfully: {result.data}")
-                    
-                    # Update lecture state (original translation only)
-                    if lecture_id_int in lectures_state:
-                        lectures_state[lecture_id_int]["chunk_count"] += 1
-                        lectures_state[lecture_id_int]["full_transcript"] += " " + translated_text
-                        print(f"📊 Updated state - chunks: {lectures_state[lecture_id_int]['chunk_count']}")
-                        
+                    lecture_check = supabase_client.table("lectures").select(
+                        "id, ended_at"
+                    ).eq("id", lecture_id_int).single().execute()
+
+                    if not lecture_check.data:
+                        print(f"⚠️  Lecture {lecture_id_int} not found in database, skipping save")
+                        skip_save_reason = "lecture_missing"
+                    elif lecture_check.data.get("ended_at"):
+                        print(f"⚠️  Lecture {lecture_id_int} already ended, skipping save")
+                        skip_save_reason = "lecture_ended"
+                    else:
+                        if actual_chunk_number is None:
+                            chunk_count_query = supabase_client.table("transcriptions").select(
+                                "chunk_number"
+                            ).eq("lecture_id", lecture_id_int).eq("is_gpt_refined", False).execute()
+
+                            actual_chunk_number = len(chunk_count_query.data) if chunk_count_query.data else 0
+
+                        print(f"💾 Saving to database - lecture_id: {lecture_id_int}, chunk: {actual_chunk_number}")
+
+                        result = supabase_client.table("transcriptions").insert({
+                            "lecture_id": lecture_id_int,
+                            "chunk_number": actual_chunk_number,
+                            "english_text": translated_text,
+                            "is_gpt_refined": False,
+                            "created_at": datetime.now(timezone.utc).isoformat(),
+                            "timestamps": {
+                                "recorded_at": datetime.now(timezone.utc).isoformat()
+                            }
+                        }).execute()
+
+                        print(f"✅ Saved to database successfully: {result.data}")
+
+                        # Update lecture state (optional cache only)
+                        if lecture_id_int in lectures_state:
+                            existing_count = lectures_state[lecture_id_int].get("chunk_count", 0)
+                            lectures_state[lecture_id_int]["chunk_count"] = max(
+                                existing_count,
+                                (actual_chunk_number or 0) + 1
+                            )
+                            lectures_state[lecture_id_int]["full_transcript"] += " " + translated_text
+                            print(f"📊 Updated state - chunks: {lectures_state[lecture_id_int]['chunk_count']}")
+
+                        # Save refined transcript if available
+                        if refined_text:
+                            try:
+                                supabase_client.table("transcriptions").insert({
+                                    "lecture_id": lecture_id_int,
+                                    "chunk_number": actual_chunk_number,
+                                    "english_text": refined_text,
+                                    "is_gpt_refined": True,
+                                    "created_at": datetime.now(timezone.utc).isoformat(),
+                                    "timestamps": {
+                                        "recorded_at": datetime.now(timezone.utc).isoformat()
+                                    }
+                                }).execute()
+                            except Exception as db_error:
+                                print(f"❌ Refined save error: {db_error}")
+                                import traceback
+                                traceback.print_exc()
+
                 except Exception as db_error:
                     print(f"❌ Database save error: {db_error}")
                     import traceback
@@ -364,31 +410,24 @@ async def translate_audio(
             else:
                 if not lecture_id_int:
                     print("⚠️  No lecture_id provided, skipping database save")
-            
-            # Save refined transcript if available
-            if lecture_id_int and supabase_client and refined_text:
-                try:
-                    supabase_client.table("transcriptions").insert({
-                        "lecture_id": lecture_id_int,
-                        "chunk_number": chunk_number_int or 0,
-                        "english_text": refined_text,
-                        "is_gpt_refined": True,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                        "timestamps": {
-                            "recorded_at": datetime.now(timezone.utc).isoformat()
-                        }
-                    }).execute()
-                except Exception as db_error:
-                    print(f"❌ Refined save error: {db_error}")
-                    import traceback
-                    traceback.print_exc()
+
+            if skip_save_reason == "lecture_missing":
+                response_status = "success_no_save"
+                response_lecture_id = None
+                response_chunk_number = None
+            elif skip_save_reason == "lecture_ended":
+                response_status = "lecture_ended"
+                response_lecture_id = None
+                response_chunk_number = None
+            else:
+                response_chunk_number = actual_chunk_number
 
             return TranslationResponse(
                 text=translated_text,
                 refined_text=refined_text,
-                status="success",
-                lecture_id=lecture_id_int,
-                chunk_number=chunk_number_int
+                status=response_status,
+                lecture_id=response_lecture_id,
+                chunk_number=response_chunk_number
             )
             
         finally:
@@ -418,17 +457,22 @@ async def end_recording(request: EndRecordingRequest):
         lecture_id = request.lecture_id
         
         print(f"🔚 Ending lecture {lecture_id}")
-        print(f"📊 Lectures state: {lectures_state}")
-        
-        if lecture_id not in lectures_state:
-            print(f"❌ Lecture {lecture_id} not found in state. Available: {list(lectures_state.keys())}")
-            raise HTTPException(status_code=404, detail="Lecture not found in session state")
         
         if not groq_client:
             raise HTTPException(status_code=500, detail="Groq API not configured")
         
         if not supabase_client:
             raise HTTPException(status_code=500, detail="Database not configured")
+
+        lecture_check = supabase_client.table("lectures").select(
+            "id, ended_at"
+        ).eq("id", lecture_id).single().execute()
+
+        if not lecture_check.data:
+            raise HTTPException(status_code=404, detail="Lecture not found in database")
+
+        if lecture_check.data.get("ended_at"):
+            raise HTTPException(status_code=400, detail="Lecture has already been ended")
         
         # Get full transcript from database
         print(f"🔍 Fetching transcriptions from database for lecture {lecture_id}")
@@ -439,13 +483,11 @@ async def end_recording(request: EndRecordingRequest):
         print(f"📝 Found {len(transcript_response.data) if transcript_response.data else 0} transcriptions in database")
         
         if not transcript_response.data:
-            # Use from memory if no DB records
-            print("⚠️  No database records, using in-memory transcript")
-            full_transcript = lectures_state[lecture_id]["full_transcript"]
-        else:
-            full_transcript = " ".join([
-                item["english_text"] for item in transcript_response.data
-            ])
+            raise HTTPException(status_code=400, detail="No transcript available. Please record some audio before ending the session.")
+
+        full_transcript = " ".join([
+            item["english_text"] for item in transcript_response.data
+        ])
         
         print(f"📄 Full transcript length: {len(full_transcript)} characters")
         print(f"📄 Transcript preview: {full_transcript[:200]}...")
@@ -512,6 +554,43 @@ Title:"""
         error_msg = str(e)
         print(f"End recording error: {error_msg}")
         raise HTTPException(status_code=500, detail=f"Failed to end recording: {error_msg}")
+
+
+@app.get("/lecture/{lecture_id}/status")
+async def check_lecture_status(lecture_id: int):
+    """Check if a lecture session is still active"""
+    try:
+        if not supabase_client:
+            raise HTTPException(status_code=500, detail="Database not configured")
+
+        lecture_response = supabase_client.table("lectures").select(
+            "id, lecture_name, ended_at, generated_title"
+        ).eq("id", lecture_id).single().execute()
+
+        if not lecture_response.data:
+            return {
+                "exists": False,
+                "active": False,
+                "ended": False
+            }
+
+        lecture = lecture_response.data
+        ended = lecture.get("ended_at") is not None
+
+        return {
+            "exists": True,
+            "active": not ended,
+            "ended": ended,
+            "lecture_name": lecture.get("lecture_name"),
+            "generated_title": lecture.get("generated_title")
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Check status error: {error_msg}")
+        raise HTTPException(status_code=500, detail=f"Failed to check status: {error_msg}")
 
 
 @app.get("/lecture/{lecture_id}")

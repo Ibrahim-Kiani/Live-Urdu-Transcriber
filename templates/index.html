@@ -626,6 +626,76 @@
         // ============================================
         // Lecture Management Functions
         // ============================================
+        function resetSessionUI({ clearTranscript = true } = {}) {
+            state.lectureId = null;
+            state.lectureName = null;
+            state.sessionActive = false;
+            state.chunkCount = 0;
+            elements.chunkCount.textContent = '0';
+
+            clearSessionState();
+
+            elements.recordingControls.classList.add('hidden');
+            elements.lectureSetup.classList.remove('hidden');
+            elements.lectureNameInput.value = '';
+
+            if (clearTranscript) {
+                clearSubtitles();
+            }
+        }
+
+        async function validateAndRestoreSession() {
+            const savedSession = sessionStorage.getItem('urdu_translator_session');
+            if (!savedSession) return;
+
+            let session;
+            try {
+                session = JSON.parse(savedSession);
+            } catch (error) {
+                console.warn('⚠️ Failed to parse saved session, clearing');
+                resetSessionUI();
+                return;
+            }
+
+            if (!session.lectureId || !session.sessionActive) return;
+
+            try {
+                const response = await fetch(`/lecture/${session.lectureId}/status`);
+
+                if (!response.ok) {
+                    throw new Error('Session validation failed');
+                }
+
+                const status = await response.json();
+
+                if (!status.exists || status.ended || !status.active) {
+                    console.log('⚠️ Session no longer valid, clearing local state');
+                    resetSessionUI();
+                    showError('Previous session has ended. Please start a new session.');
+                    return;
+                }
+
+                console.log('✅ Session validated, restoring UI');
+                state.lectureId = session.lectureId;
+                state.lectureName = session.lectureName || status.lecture_name || 'Untitled Session';
+                state.chunkCount = session.chunkCount || 0;
+                state.sessionActive = true;
+
+                elements.lectureSetup.classList.add('hidden');
+                elements.recordingControls.classList.remove('hidden');
+                elements.lectureNameDisplay.textContent = `📚 ${state.lectureName}`;
+                elements.chunkCount.textContent = state.chunkCount;
+                elements.recordingStatus.textContent = 'Tap to Start Recording';
+
+                showSuccess(`Session "${state.lectureName}" restored`);
+
+            } catch (error) {
+                console.error('Session validation error:', error);
+                resetSessionUI();
+                showError('Could not restore previous session');
+            }
+        }
+
         async function createLecture(lectureName) {
             try {
                 const response = await fetch('/lecture/create', {
@@ -675,6 +745,24 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ lecture_id: state.lectureId })
                 });
+
+                if (response.status === 404) {
+                    console.warn('⚠️ Session not found on backend, resetting UI');
+                    resetSessionUI();
+                    showError('Session not found. It may have already ended. Starting fresh.');
+                    return;
+                }
+
+                if (response.status === 400) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const detail = errorData.detail || 'Failed to end recording';
+                    if (detail.toLowerCase().includes('already been ended')) {
+                        resetSessionUI();
+                        showError('Session already ended. Starting fresh.');
+                        return;
+                    }
+                    throw new Error(detail);
+                }
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
@@ -1254,6 +1342,7 @@
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 requestWakeLock();
+                validateAndRestoreSession();
             } else {
                 releaseWakeLock();
             }
@@ -1274,24 +1363,8 @@
         // ============================================
         // Initialization
         // ============================================
-        
-        // Restore UI if session was active
-        if (state.sessionActive && state.lectureId) {
-            console.log('🔄 Restoring session from storage:', {
-                lectureId: state.lectureId,
-                lectureName: state.lectureName,
-                chunkCount: state.chunkCount
-            });
-            
-            // Switch to recording controls
-            elements.lectureSetup.classList.add('hidden');
-            elements.recordingControls.classList.remove('hidden');
-            elements.lectureNameDisplay.textContent = `📚 ${state.lectureName}`;
-            elements.chunkCount.textContent = state.chunkCount;
-            elements.recordingStatus.textContent = 'Tap to Start Recording';
-            
-            showSuccess(`Session "${state.lectureName}" restored`);
-        }
+        // Validate and restore session if active
+        validateAndRestoreSession();
 
         // Request wake lock on first user interaction
         document.addEventListener('click', requestWakeLock, { once: true });
