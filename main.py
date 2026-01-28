@@ -177,7 +177,9 @@ def refine_urdu_transcript(raw_urdu_text: str) -> Optional[str]:
         "Literal vs. Intentional: If the raw text contains \"nonsensical\" phrases or poor grammar, "
         "infer the speaker's intent based on the surrounding technical context.\n\n"
         "Smoothing: Fix run-on sentences and ensure the flow sounds like a professional lecture or discussion.\n\n"
-        "Output: Provide only the refined English translation."
+        "If you receieve an input of english rather than urdu, or a mix between the two, still return your response in english following the instructions given."
+        "Output: Return ONLY the refined English translation. DON'T add any commentary or add introductions such as 'Sure, here is the required translation: '."
+        
     )
 
     user_prompt = f"Input (Urdu Transcription): {raw_urdu_text}"
