@@ -493,12 +493,14 @@
         // Configuration
         // ============================================
         const CONFIG = {
-            SILENCE_THRESHOLD: 0.07,       // RMS volume threshold for silence detection (increased to 0.10)
+            SILENCE_THRESHOLD: 0.08,       // RMS quality gate after normalization
             SILENCE_DURATION: 2500,        // ms of silence before cutting (1.5 seconds)
             MAX_CHUNK_DURATION: 50000,     // Max recording duration before forced cut (10 seconds)
             VOLUME_CHECK_INTERVAL: 50,     // How often to check volume (ms)
             MIN_CHUNK_BYTES: 52000,        // Minimum audio bytes before sending (increased to 12KB)
-            MIN_PEAK_VOLUME: 0.05,         // Minimum peak volume to consider as valid speech
+            MIN_PEAK_VOLUME: 0.12,         // Minimum peak volume to consider as valid speech after normalization
+            TARGET_SAMPLE_RATE: 16000,     // Target sample rate for WAV encoding
+            INPUT_GAIN: 1.6,               // Pre-gain to improve soft speech detection
             API_ENDPOINT: '/translate'
         };
 
@@ -516,7 +518,12 @@
             audioContext: null,
             analyser: null,
             microphone: null,
+            preGain: null,
+            processor: null,
+            zeroGain: null,
             audioChunks: [],
+            recordingBuffer: [],
+            recordingLength: 0,
             silenceStart: null,
             recordingStart: null,
             chunkCount: restoredSession.chunkCount || 0,
@@ -827,49 +834,39 @@
                     }
                 });
 
-                // Setup Web Audio API for volume analysis
-                state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                // Setup Web Audio API for volume analysis and WAV capture
+                try {
+                    state.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: CONFIG.TARGET_SAMPLE_RATE
+                    });
+                } catch (error) {
+                    state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
                 state.analyser = state.audioContext.createAnalyser();
                 state.analyser.fftSize = 2048;
                 state.microphone = state.audioContext.createMediaStreamSource(stream);
-                state.microphone.connect(state.analyser);
-
-                // Setup MediaRecorder
-                const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
-                    ? 'audio/webm;codecs=opus' 
-                    : 'audio/webm';
-                
-                state.mediaRecorder = new MediaRecorder(stream, { mimeType });
-                state.audioChunks = [];
-
-                state.mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        state.audioChunks.push(event.data);
-                    }
+                state.preGain = state.audioContext.createGain();
+                state.preGain.gain.value = CONFIG.INPUT_GAIN;
+                state.microphone.connect(state.preGain);
+                state.preGain.connect(state.analyser);
+                state.processor = state.audioContext.createScriptProcessor(4096, 1, 1);
+                state.processor.onaudioprocess = (event) => {
+                    if (!state.isRecording) return;
+                    const input = event.inputBuffer.getChannelData(0);
+                    state.recordingBuffer.push(new Float32Array(input));
+                    state.recordingLength += input.length;
                 };
 
-                state.mediaRecorder.onstop = async () => {
-                    if (state.audioChunks.length > 0) {
-                        const audioBlob = new Blob(state.audioChunks, { type: mimeType });
-                        state.audioChunks = [];
-                        
-                        // Only send if blob meets minimum size AND had meaningful speech
-                        if (audioBlob.size > CONFIG.MIN_CHUNK_BYTES && state.peakVolume > CONFIG.MIN_PEAK_VOLUME) {
-                            await sendAudioChunk(audioBlob);
-                        }
-                    }
+                state.zeroGain = state.audioContext.createGain();
+                state.zeroGain.gain.value = 0;
+                state.preGain.connect(state.processor);
+                state.processor.connect(state.zeroGain);
+                state.zeroGain.connect(state.audioContext.destination);
 
-                    // Reset peak volume for next chunk
-                    state.peakVolume = 0;
-
-                    // If still in recording mode, start a new chunk immediately
-                    if (state.isRecording && state.mediaRecorder && state.mediaRecorder.state === 'inactive') {
-                        startNewChunk();
-                    }
-                };
+                resetRecordingBuffer();
+                state.peakVolume = 0;
 
                 // Start recording
-                state.mediaRecorder.start();
                 state.isRecording = true;
                 state.recordingStart = Date.now();
                 state.silenceStart = null;
@@ -889,46 +886,138 @@
             }
         }
 
-        function startNewChunk() {
-            if (state.mediaRecorder && state.isRecording) {
-                state.audioChunks = [];
-                state.peakVolume = 0;  // Reset peak volume
-                state.mediaRecorder.start();
-                state.recordingStart = Date.now();
-                state.silenceStart = null;
+        function resetRecordingBuffer() {
+            state.recordingBuffer = [];
+            state.recordingLength = 0;
+        }
+
+        function mergeBuffers(buffers, length) {
+            const result = new Float32Array(length);
+            let offset = 0;
+            buffers.forEach((buffer) => {
+                result.set(buffer, offset);
+                offset += buffer.length;
+            });
+            return result;
+        }
+
+        function downsampleBuffer(buffer, inputRate, outputRate) {
+            if (outputRate === inputRate) return buffer;
+            const sampleRateRatio = inputRate / outputRate;
+            const newLength = Math.round(buffer.length / sampleRateRatio);
+            const result = new Float32Array(newLength);
+            let offsetResult = 0;
+            let offsetBuffer = 0;
+            while (offsetResult < result.length) {
+                const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+                let sum = 0;
+                let count = 0;
+                for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+                    sum += buffer[i];
+                    count++;
+                }
+                result[offsetResult] = count > 0 ? sum / count : 0;
+                offsetResult++;
+                offsetBuffer = nextOffsetBuffer;
+            }
+            return result;
+        }
+
+        function writeString(view, offset, text) {
+            for (let i = 0; i < text.length; i++) {
+                view.setUint8(offset + i, text.charCodeAt(i));
             }
         }
 
-        function stopCurrentChunk() {
-            if (state.mediaRecorder && state.mediaRecorder.state === 'recording') {
-                state.mediaRecorder.stop();
-                state.chunkCount++;
-                elements.chunkCount.textContent = state.chunkCount;
-                
-                // Save updated chunk count
-                if (state.lectureId) {
-                    saveSessionState();
-                }
+        function encodeWav(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++) {
+                const clamped = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF, true);
+                offset += 2;
             }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        function buildWavBlob() {
+            if (!state.audioContext || state.recordingLength === 0) {
+                return null;
+            }
+            const merged = mergeBuffers(state.recordingBuffer, state.recordingLength);
+            const downsampled = downsampleBuffer(
+                merged,
+                state.audioContext.sampleRate,
+                CONFIG.TARGET_SAMPLE_RATE
+            );
+            return encodeWav(downsampled, CONFIG.TARGET_SAMPLE_RATE);
+        }
+
+        async function stopCurrentChunk(force = false) {
+            if (!state.isRecording && !force) return;
+
+            const audioBlob = buildWavBlob();
+            resetRecordingBuffer();
+
+            if (audioBlob && audioBlob.size > CONFIG.MIN_CHUNK_BYTES && state.peakVolume > CONFIG.MIN_PEAK_VOLUME) {
+                await sendAudioChunk(audioBlob);
+            }
+
+            state.chunkCount++;
+            elements.chunkCount.textContent = state.chunkCount;
+
+            if (state.lectureId) {
+                saveSessionState();
+            }
+
+            state.peakVolume = 0;
+            state.recordingStart = Date.now();
+            state.silenceStart = null;
         }
 
         function stopRecording() {
             state.isRecording = false;
 
-            // Stop the media recorder
-            if (state.mediaRecorder && state.mediaRecorder.state === 'recording') {
-                state.mediaRecorder.stop();
-                state.chunkCount++;
-                elements.chunkCount.textContent = state.chunkCount;
+            if (state.recordingLength > 0) {
+                stopCurrentChunk(true);
             }
 
             // Stop all tracks
-            if (state.mediaRecorder && state.mediaRecorder.stream) {
-                state.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            if (state.microphone && state.microphone.mediaStream) {
+                state.microphone.mediaStream.getTracks().forEach(track => track.stop());
             }
 
             // Clean up audio context
             if (state.audioContext) {
+                if (state.processor) {
+                    state.processor.disconnect();
+                    state.processor = null;
+                }
+                if (state.preGain) {
+                    state.preGain.disconnect();
+                    state.preGain = null;
+                }
+                if (state.zeroGain) {
+                    state.zeroGain.disconnect();
+                    state.zeroGain = null;
+                }
                 state.audioContext.close();
                 state.audioContext = null;
             }
@@ -1031,7 +1120,7 @@
             });
 
             const formData = new FormData();
-            formData.append('audio', audioBlob, 'audio.webm');
+            formData.append('audio', audioBlob, 'audio.wav');
             
             // Add lecture_id and chunk_number if session is active
             if (state.lectureId) {

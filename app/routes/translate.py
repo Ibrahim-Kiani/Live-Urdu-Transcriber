@@ -10,6 +10,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from ..clients import groq_client, supabase_client
 from ..config import TRANSLATION_MODEL, TRANSCRIPTION_MODEL
 from ..models import TranslationResponse
+from ..services.audio_processing import prepare_audio
 from ..services.transcription import refine_urdu_transcript
 from ..state import lectures_state
 
@@ -39,8 +40,8 @@ async def translate_audio(
             detail="Groq API key not configured. Please set GROQ_API_KEY in .env file"
         )
 
-    content_type = audio.content_type or "audio/webm"
-    if not any(t in content_type for t in ["audio", "video/webm"]):
+    content_type = audio.content_type or "audio/wav"
+    if not any(t in content_type for t in ["audio/wav", "audio/x-wav", "audio/wave", "audio"]):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid file type: {content_type}. Expected audio file."
@@ -52,10 +53,19 @@ async def translate_audio(
         if len(audio_content) < 5000:
             return {"text": "", "status": "too_short"}
 
-        suffix = ".webm" if "webm" in content_type else ".wav"
+        if "wav" not in content_type:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type: {content_type}. Expected WAV audio."
+            )
 
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_file:
-            temp_file.write(audio_content)
+        prepared_audio = prepare_audio(audio_content, input_format="wav", compressor_ratio=4.0)
+
+        if not prepared_audio or len(prepared_audio) < 5000:
+            return {"text": "", "status": "too_short"}
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+            temp_file.write(prepared_audio)
             temp_file_path = temp_file.name
 
         try:
