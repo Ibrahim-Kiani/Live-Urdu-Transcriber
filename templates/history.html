@@ -392,11 +392,6 @@
                 ? refinedTranscript
                 : (showEnhanced ? enhancedTranscript : originalTranscript);
 
-            let toggleLabel = showEnhanced ? 'Show Original' : 'Show Summarized';
-            if (showRefined) {
-                toggleLabel = enhancedTranscript ? 'Show Enhanced' : 'Show Original';
-            }
-
             const transcriptContent = activeTranscript
                 ? `<div class="text-sm leading-relaxed prose prose-invert max-w-none">${renderMarkdown(activeTranscript)}</div>`
                 : `
@@ -430,8 +425,11 @@
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <h4 class="text-lg">Transcript</h4>
                         <div class="flex flex-wrap gap-2">
-                            <button id="toggleTranscriptBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
-                                ${toggleLabel}
+                            <button id="showOriginalBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
+                                Show Original
+                            </button>
+                            <button id="showEnhancedBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
+                                Show Summarized
                             </button>
                             <button id="showRefinedBtn" class="soft-input px-3 py-2 rounded-lg text-xs uppercase tracking-[0.18em]">
                                 Show Refined
@@ -447,18 +445,23 @@
                 </div>
             `;
 
-            const toggleBtn = document.getElementById('toggleTranscriptBtn');
+            const showOriginalBtn = document.getElementById('showOriginalBtn');
+            const showEnhancedBtn = document.getElementById('showEnhancedBtn');
             const showRefinedBtn = document.getElementById('showRefinedBtn');
             const regenerateBtn = document.getElementById('regenerateBtn');
 
-            if (toggleBtn) {
-                toggleBtn.disabled = !enhancedTranscript && !originalTranscript;
-                toggleBtn.addEventListener('click', () => {
-                    if (showRefined) {
-                        state.viewMode = enhancedTranscript ? 'enhanced' : 'original';
-                    } else {
-                        state.viewMode = showEnhanced ? 'original' : 'enhanced';
-                    }
+            if (showOriginalBtn) {
+                showOriginalBtn.disabled = !originalTranscript;
+                showOriginalBtn.addEventListener('click', () => {
+                    state.viewMode = 'original';
+                    renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+                });
+            }
+
+            if (showEnhancedBtn) {
+                showEnhancedBtn.disabled = !enhancedTranscript;
+                showEnhancedBtn.addEventListener('click', () => {
+                    state.viewMode = 'enhanced';
                     renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
                 });
             }
