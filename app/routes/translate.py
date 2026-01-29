@@ -86,7 +86,25 @@ async def translate_audio(
                 )
 
             urdu_transcript = str(transcription).strip()
-            refined_text = refine_urdu_transcript(urdu_transcript) if urdu_transcript else None
+
+            previous_raw_context = None
+            if lecture_id_int:
+                if lecture_id_int not in lectures_state:
+                    lectures_state[lecture_id_int] = {
+                        "lecture_name": None,
+                        "chunk_count": 0,
+                        "full_transcript": "",
+                        "raw_urdu_chunks": []
+                    }
+                raw_chunks = lectures_state[lecture_id_int].setdefault("raw_urdu_chunks", [])
+                if raw_chunks:
+                    previous_raw_context = raw_chunks[-5:]
+
+            refined_text = (
+                refine_urdu_transcript(urdu_transcript, previous_raw_context)
+                if urdu_transcript
+                else None
+            )
 
             print(f"✅ Translated: {translated_text[:100]}...")
 
@@ -164,6 +182,9 @@ async def translate_audio(
             else:
                 if not lecture_id_int:
                     print("⚠️  No lecture_id provided, skipping database save")
+
+            if lecture_id_int and urdu_transcript and lecture_id_int in lectures_state:
+                lectures_state[lecture_id_int].setdefault("raw_urdu_chunks", []).append(urdu_transcript)
 
             if skip_save_reason == "lecture_missing":
                 response_status = "success_no_save"

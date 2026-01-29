@@ -162,6 +162,28 @@
             background: linear-gradient(90deg, transparent, rgba(240, 212, 138, 0.6), transparent);
             opacity: 0.6;
         }
+
+        .action-btn {
+            background: rgba(12, 14, 20, 0.92);
+            border: 1px solid rgba(240, 212, 138, 0.5);
+            color: var(--gold-1);
+            text-transform: uppercase;
+            letter-spacing: 0.28em;
+            transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .action-btn:hover {
+            border-color: rgba(240, 212, 138, 0.9);
+            box-shadow: 0 10px 25px rgba(10, 12, 20, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
     </style>
 </head>
 <body class="app-shell min-h-screen flex flex-col">
@@ -298,8 +320,11 @@
             }
 
             state.filtered.forEach((lecture) => {
-                const card = document.createElement('button');
+                const card = document.createElement('div');
                 card.className = 'lecture-card w-full text-left rounded-xl p-4 space-y-2';
+                card.setAttribute('role', 'button');
+                card.setAttribute('tabindex', '0');
+
                 if (lecture.id === state.selectedId) {
                     card.classList.add('active');
                 }
@@ -307,17 +332,36 @@
                 const title = lecture.generated_title || lecture.lecture_name || 'Untitled session';
                 const subtitle = lecture.lecture_name ? lecture.lecture_name : 'Untitled session';
                 const createdAt = formatDate(lecture.created_at);
+                const isActive = !lecture.ended_at;
 
                 card.innerHTML = `
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between gap-2">
                         <p class="text-sm font-medium" style="color: var(--text-strong);">${escapeHtml(title)}</p>
-                        <span class="tag text-[9px] px-2 py-1 rounded-full">${lecture.ended_at ? 'completed' : 'active'}</span>
+                        <span class="tag text-[9px] px-2 py-1 rounded-full">${isActive ? 'active' : 'completed'}</span>
                     </div>
                     <p class="text-xs" style="color: var(--text-dim);">${escapeHtml(subtitle)}</p>
-                    <p class="text-xs" style="color: var(--text-muted);">${createdAt}</p>
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs" style="color: var(--text-muted);">${createdAt}</p>
+                        ${isActive ? `<button class="action-btn text-[9px] px-3 py-1.5 rounded-full" data-action="complete">Complete</button>` : ''}
+                    </div>
                 `;
 
                 card.addEventListener('click', () => selectLecture(lecture.id));
+                card.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        selectLecture(lecture.id);
+                    }
+                });
+
+                const completeButton = card.querySelector('[data-action="complete"]');
+                if (completeButton) {
+                    completeButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        endLectureFromHistory(lecture.id);
+                    });
+                }
+
                 elements.lectureList.appendChild(card);
             });
         }
@@ -339,6 +383,33 @@
                 const hasOriginal = !!data.lecture.full_transcript;
                 state.viewMode = hasOriginal ? 'original' : (hasRefined ? 'refined' : (hasEnhanced ? 'enhanced' : 'original'));
                 renderLectureDetail(data.lecture, data.transcriptions || []);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function endLectureFromHistory(lectureId) {
+            if (!lectureId) return;
+
+            const confirmed = window.confirm('Complete this lecture and generate its title?');
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch('/lecture/end', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ lecture_id: lectureId })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to complete lecture');
+                }
+
+                await response.json().catch(() => ({}));
+                await loadLectures(lectureId);
             } catch (error) {
                 showError(error.message);
             }
@@ -513,7 +584,7 @@
             renderLectureList();
         }
 
-        async function loadLectures() {
+        async function loadLectures(preferredLectureId = null) {
             try {
                 const response = await fetch('/lectures');
                 if (!response.ok) {
@@ -526,8 +597,9 @@
                 state.filtered = [...state.lectures];
                 renderLectureList();
 
-                if (state.filtered.length > 0) {
-                    selectLecture(state.filtered[0].id);
+                const nextId = preferredLectureId || state.selectedId || (state.filtered[0] && state.filtered[0].id);
+                if (nextId) {
+                    selectLecture(nextId);
                 }
             } catch (error) {
                 showError(error.message);

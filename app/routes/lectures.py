@@ -33,7 +33,8 @@ async def create_lecture(request: CreateLectureRequest):
             lectures_state[lecture_id] = {
                 "lecture_name": request.lecture_name,
                 "chunk_count": 0,
-                "full_transcript": ""
+                "full_transcript": "",
+                "raw_urdu_chunks": []
             }
 
             return StartRecordingResponse(
@@ -253,6 +254,9 @@ async def delete_transcription_chunk(lecture_id: int, chunk_number: int):
                 lectures_state[lecture_id]["full_transcript"] = " ".join(
                     [item.get("english_text", "") for item in remaining if item.get("english_text")]
                 ).strip()
+                raw_chunks = lectures_state[lecture_id].get("raw_urdu_chunks")
+                if isinstance(raw_chunks, list) and 0 <= chunk_number < len(raw_chunks):
+                    del raw_chunks[chunk_number]
             except Exception as state_error:
                 print(f"⚠️  Failed to refresh lecture state after delete: {state_error}")
 
