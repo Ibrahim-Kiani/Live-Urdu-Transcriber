@@ -4,6 +4,7 @@
 .env.*.local
 .github
 plans
+code.md
 # Python
 __pycache__/
 *.py[cod]

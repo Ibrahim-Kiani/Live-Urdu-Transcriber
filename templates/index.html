@@ -296,6 +296,10 @@
             text-transform: uppercase;
             letter-spacing: 0.3em;
         }
+
+        .range-value {
+            color: var(--gold-1);
+        }
     </style>
 </head>
     <body class="app-shell min-h-screen flex flex-col">
@@ -437,6 +441,33 @@
                     <p id="recordingTimer" class="text-sm mt-1" style="color: var(--text-dim);">00:00</p>
                     <p id="lectureNameDisplay" class="text-xs mt-2 font-medium" style="color: var(--gold-1);"></p>
                 </div>
+
+                <div class="panel rounded-xl p-3 w-full space-y-4">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.3em]" style="color: var(--text-dim);">Recording mode</p>
+                        <div class="mt-2 flex flex-wrap items-center gap-3 text-xs" style="color: var(--text-muted);">
+                            <label class="flex items-center gap-2">
+                                <input id="modeVoice" type="radio" name="recordMode" value="voice" checked>
+                                Voice detection
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input id="modeInterval" type="radio" name="recordMode" value="interval">
+                                Translate every
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <input id="intervalSlider" type="range" min="5" max="60" step="1" value="20" class="soft-input w-28">
+                                <span class="range-value text-xs" id="intervalValue">20s</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-[0.3em]" style="color: var(--text-dim);">Input gain</p>
+                        <div class="mt-2 flex items-center gap-3 text-xs" style="color: var(--text-muted);">
+                            <input id="gainSlider" type="range" min="0.8" max="3.0" step="0.1" value="1.6" class="soft-input w-40">
+                            <span class="range-value" id="gainValue">1.6×</span>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- End Session Button -->
                 <button 
@@ -452,7 +483,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <span>Auto-detects speech pauses</span>
+                        <span id="modeHint">Auto-detects speech pauses</span>
                     </div>
                     <div id="chunkCounter" style="color: var(--text-dim);" class="accent-chip text-[10px] px-2 py-1 rounded-full">
                         Chunks: <span id="chunkCount">0</span>
@@ -501,6 +532,8 @@
             MIN_PEAK_VOLUME: 0.12,         // Minimum peak volume to consider as valid speech after normalization
             TARGET_SAMPLE_RATE: 16000,     // Target sample rate for WAV encoding
             INPUT_GAIN: 1.6,               // Pre-gain to improve soft speech detection
+            RECORDING_MODE: 'voice',       // voice | interval
+            INTERVAL_SECONDS: 20,          // Interval mode cadence
             API_ENDPOINT: '/translate'
         };
 
@@ -530,10 +563,14 @@
             processingCount: 0,
             volumeCheckInterval: null,
             timerInterval: null,
+            intervalTimer: null,
             peakVolume: 0,  // Track peak volume during recording
             lectureId: restoredSession.lectureId || null,  // Current lecture ID
             lectureName: restoredSession.lectureName || null,  // Current lecture name
-            sessionActive: restoredSession.sessionActive || false  // Whether a session is active
+            sessionActive: restoredSession.sessionActive || false,  // Whether a session is active
+            recordingMode: CONFIG.RECORDING_MODE,
+            intervalSeconds: CONFIG.INTERVAL_SECONDS,
+            isCutting: false
         };
         
         // Function to save session to sessionStorage
@@ -584,7 +621,14 @@
             errorToast: document.getElementById('errorToast'),
             errorMessage: document.getElementById('errorMessage'),
             successToast: document.getElementById('successToast'),
-            successMessage: document.getElementById('successMessage')
+            successMessage: document.getElementById('successMessage'),
+            modeVoice: document.getElementById('modeVoice'),
+            modeInterval: document.getElementById('modeInterval'),
+            intervalSlider: document.getElementById('intervalSlider'),
+            intervalValue: document.getElementById('intervalValue'),
+            gainSlider: document.getElementById('gainSlider'),
+            gainValue: document.getElementById('gainValue'),
+            modeHint: document.getElementById('modeHint')
         };
 
         // ============================================
@@ -639,6 +683,8 @@
             state.sessionActive = false;
             state.chunkCount = 0;
             elements.chunkCount.textContent = '0';
+
+            stopIntervalTimer();
 
             clearSessionState();
 
@@ -877,6 +923,10 @@
                 // Start volume monitoring
                 startVolumeMonitoring();
 
+                if (state.recordingMode === 'interval') {
+                    startIntervalTimer();
+                }
+
                 // Start timer
                 startTimer();
 
@@ -972,12 +1022,21 @@
 
         async function stopCurrentChunk(force = false) {
             if (!state.isRecording && !force) return;
+            if (state.isCutting) return;
+            state.isCutting = true;
 
             const audioBlob = buildWavBlob();
             resetRecordingBuffer();
 
-            if (audioBlob && audioBlob.size > CONFIG.MIN_CHUNK_BYTES && state.peakVolume > CONFIG.MIN_PEAK_VOLUME) {
-                await sendAudioChunk(audioBlob);
+            try {
+                const shouldSend = state.recordingMode === 'interval'
+                    ? (audioBlob && audioBlob.size > 0)
+                    : (audioBlob && audioBlob.size > CONFIG.MIN_CHUNK_BYTES && state.peakVolume > CONFIG.MIN_PEAK_VOLUME);
+                if (shouldSend) {
+                    await sendAudioChunk(audioBlob);
+                }
+            } finally {
+                state.isCutting = false;
             }
 
             state.chunkCount++;
@@ -1033,6 +1092,8 @@
                 state.timerInterval = null;
             }
 
+            stopIntervalTimer();
+
             // Update UI
             updateUIForRecording(false);
         }
@@ -1058,32 +1119,51 @@
                 const now = Date.now();
                 const chunkDuration = now - state.recordingStart;
 
-                // Check for silence
-                if (volume < CONFIG.SILENCE_THRESHOLD) {
-                    // Start silence timer if not already started
-                    if (!state.silenceStart) {
-                        state.silenceStart = now;
+                if (state.recordingMode === 'voice') {
+                    // Check for silence
+                    if (volume < CONFIG.SILENCE_THRESHOLD) {
+                        // Start silence timer if not already started
+                        if (!state.silenceStart) {
+                            state.silenceStart = now;
+                        }
+
+                        // Check if silence duration exceeded
+                        const silenceDuration = now - state.silenceStart;
+                        if (silenceDuration >= CONFIG.SILENCE_DURATION && chunkDuration > 500) {
+                            // Silence detected - cut the chunk
+                            console.log(`Silence detected after ${silenceDuration}ms`);
+                            stopCurrentChunk();
+                        }
+                    } else {
+                        // Reset silence timer when speech detected
+                        state.silenceStart = null;
                     }
 
-                    // Check if silence duration exceeded
-                    const silenceDuration = now - state.silenceStart;
-                    if (silenceDuration >= CONFIG.SILENCE_DURATION && chunkDuration > 500) {
-                        // Silence detected - cut the chunk
-                        console.log(`Silence detected after ${silenceDuration}ms`);
+                    // Force cut if max duration reached
+                    if (chunkDuration >= CONFIG.MAX_CHUNK_DURATION) {
+                        console.log('Max chunk duration reached - forcing cut');
                         stopCurrentChunk();
                     }
-                } else {
-                    // Reset silence timer when speech detected
-                    state.silenceStart = null;
-                }
-
-                // Force cut if max duration reached
-                if (chunkDuration >= CONFIG.MAX_CHUNK_DURATION) {
-                    console.log('Max chunk duration reached - forcing cut');
-                    stopCurrentChunk();
                 }
 
             }, CONFIG.VOLUME_CHECK_INTERVAL);
+        }
+
+        function startIntervalTimer() {
+            stopIntervalTimer();
+            const intervalMs = Math.max(5, state.intervalSeconds) * 1000;
+            state.intervalTimer = setInterval(() => {
+                if (state.isRecording) {
+                    stopCurrentChunk();
+                }
+            }, intervalMs);
+        }
+
+        function stopIntervalTimer() {
+            if (state.intervalTimer) {
+                clearInterval(state.intervalTimer);
+                state.intervalTimer = null;
+            }
         }
 
         // ============================================
@@ -1187,6 +1267,17 @@
                 elements.statusBadge.classList.remove('recording');
                 elements.volumeVisualizer.classList.add('hidden');
             }
+        }
+
+        function updateRecordingModeUI() {
+            const isInterval = state.recordingMode === 'interval';
+            elements.modeVoice.checked = !isInterval;
+            elements.modeInterval.checked = isInterval;
+            elements.intervalSlider.disabled = !isInterval;
+            elements.intervalValue.textContent = `${state.intervalSeconds}s`;
+            elements.modeHint.textContent = isInterval
+                ? `Translating every ${state.intervalSeconds}s`
+                : 'Auto-detects speech pauses';
         }
 
         function updateProcessingIndicator() {
@@ -1427,6 +1518,41 @@
 
         elements.clearBtn.addEventListener('click', clearSubtitles);
 
+        elements.modeVoice.addEventListener('change', () => {
+            state.recordingMode = 'voice';
+            CONFIG.RECORDING_MODE = 'voice';
+            updateRecordingModeUI();
+            stopIntervalTimer();
+        });
+
+        elements.modeInterval.addEventListener('change', () => {
+            state.recordingMode = 'interval';
+            CONFIG.RECORDING_MODE = 'interval';
+            updateRecordingModeUI();
+            if (state.isRecording) {
+                startIntervalTimer();
+            }
+        });
+
+        elements.intervalSlider.addEventListener('input', (event) => {
+            const value = Number(event.target.value || 20);
+            state.intervalSeconds = value;
+            CONFIG.INTERVAL_SECONDS = value;
+            updateRecordingModeUI();
+            if (state.isRecording && state.recordingMode === 'interval') {
+                startIntervalTimer();
+            }
+        });
+
+        elements.gainSlider.addEventListener('input', (event) => {
+            const value = Number(event.target.value || 1.6);
+            CONFIG.INPUT_GAIN = value;
+            elements.gainValue.textContent = `${value.toFixed(1)}×`;
+            if (state.preGain) {
+                state.preGain.gain.value = value;
+            }
+        });
+
         // Handle page visibility change
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
@@ -1460,6 +1586,9 @@
         if (document.visibilityState === 'visible') {
             requestWakeLock();
         }
+
+        updateRecordingModeUI();
+        elements.gainValue.textContent = `${CONFIG.INPUT_GAIN.toFixed(1)}×`;
         
         console.log('🎙️ Urdu → English Translator initialized');
         console.log('Configuration:', CONFIG);
