@@ -10,30 +10,30 @@ async def enhance_transcript(title: str, raw_transcript: str) -> Optional[str]:
     """Use Groq to refine the transcript."""
     if not groq_client:
         return None
-    prompt = (
-        "Role: You are a Technical Transcript Editor specializing in Machine Learning and Computer Science lectures.\n"
-        "Task: Your goal is to take a raw, machine-translated transcript from an Urdu-to-English system and "
-        "\"reconstruct\" it into a professional, readable English transcript.\n\n"
-        f"Title: {title}\n"
-        f"Raw Transcript: {raw_transcript}\n\n"
-        "Guidelines for Refinement:\n"
-        "- Preserve Semantic Meaning: Do not add new information or remove existing concepts. The goal is to make the existing content coherent.\n"
-        "- Fix \"Phonetic\" and Translation Errors: Machine translations often misinterpret technical terms (e.g., \"Wright Next\" usually means \"Right, next,\" and \"linear length\" might mean \"linear regression\"). Use the Title to make educated guesses for these technical corrections.\n"
-        "- Repair Sentence Structure: Convert disjointed, repetitive phrases into smooth, grammatically correct English. (e.g., \"on the basis of the rules, the machine has taken out the rules\" $\\rightarrow$ \"Based on these rules, the machine has extracted patterns...\").\n"
-        "- Maintain Lecture Tone: Keep the instructional and conversational feel, but remove unnecessary fillers or extreme redundancies that don't add value.\n\n"
-        "Formatting:\n"
-        "- Use Paragraphs to separate distinct ideas.\n"
-        "- Use Bold for key technical terms.\n"
-        "- Use LaTeX for any mathematical formulas (e.g., $y = wx + b$).\n\n"
-        "Output Format: Return only the refined transcript. If a specific section is completely nonsensical even with context, place the best-guess interpretation in [brackets]."
-    )
+    prompt = f"""
+Role: You are a Technical Transcript Editor specializing in Machine Learning and Computer Science lectures.
+
+Raw Transcript: {raw_transcript}
+
+
+Content Guidelines:
+- Generate your response in markdown format. All headings MUST be bold and caps (e.g ** HEADING **).
+- All headings MUST be followed by a horizontal line break (e.g ***) on the next line.
+- SUMMARIZE the transcript provided into easily absorbable overviews of each mentioned topic.
+- Preserve original semantic meaning — do NOT add new facts or remove essential content.
+- Fix phonetic/translation errors using context and the lecture title to disambiguate technical terms.
+- Repair sentence structure and improve readability while keeping the instructional/lecture tone.
+
+
+"""
+
 
     try:
         response = groq_client.chat.completions.create(
-            model="groq/compound",
+            model=ENHANCEMENT_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
-            max_tokens=2000
+            max_tokens=4000
         )
         content = response.choices[0].message.content
         return content.strip() if content else None

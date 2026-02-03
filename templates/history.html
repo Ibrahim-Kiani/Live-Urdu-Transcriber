@@ -187,6 +187,33 @@
             box-shadow: none;
             transform: none;
         }
+
+        .prose table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+
+        .prose thead th {
+            text-align: left;
+            padding: 0.6rem 0.8rem;
+            border-bottom: 1px solid rgba(240, 212, 138, 0.35);
+            color: var(--text-strong);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+        }
+
+        .prose tbody td {
+            padding: 0.6rem 0.8rem;
+            border-bottom: 1px solid rgba(240, 212, 138, 0.15);
+            vertical-align: top;
+        }
+
+        .prose tbody tr:hover {
+            background: rgba(240, 212, 138, 0.06);
+        }
     </style>
 </head>
 <body class="app-shell min-h-screen flex flex-col">
@@ -524,7 +551,9 @@
                 window.renderMathInElement(transcriptContainer, {
                     delimiters: [
                         { left: '$$', right: '$$', display: true },
-                        { left: '$', right: '$', display: false }
+                        { left: '$', right: '$', display: false },
+                        { left: '\\[', right: '\\]', display: true },
+                        { left: '\\(', right: '\\)', display: false }
                     ],
                     throwOnError: false
                 });
@@ -574,7 +603,7 @@
         function renderMarkdown(text) {
             if (!text) return '';
             const mathTokens = [];
-            const tokenized = text.replace(/(\$\$[\s\S]+?\$\$|\$[^\n$]+?\$)/g, (match) => {
+            const tokenized = text.replace(/(\$\$[\s\S]+?\$\$|\$[^\n$]+?\$|\\\[[\s\S]+?\\\]|\\\([^\n]+?\\\))/g, (match) => {
                 mathTokens.push(match);
                 return `%%MATH_${mathTokens.length - 1}%%`;
             });
