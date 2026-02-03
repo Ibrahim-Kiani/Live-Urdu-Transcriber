@@ -80,6 +80,10 @@ async def end_recording(request: EndRecordingRequest):
             "english_text"
         ).eq("lecture_id", lecture_id).eq("is_gpt_refined", False).order("chunk_number").execute()
 
+        refined_transcript_response = supabase_client.table("transcriptions").select(
+            "english_text"
+        ).eq("lecture_id", lecture_id).eq("is_gpt_refined", True).order("chunk_number").execute()
+
         print(f"📝 Found {len(transcript_response.data) if transcript_response.data else 0} transcriptions in database")
 
         if not transcript_response.data:
@@ -88,6 +92,10 @@ async def end_recording(request: EndRecordingRequest):
         full_transcript = " ".join([
             item["english_text"] for item in transcript_response.data
         ])
+
+        refined_full_transcript = " ".join([
+            item["english_text"] for item in (refined_transcript_response.data or []) if item.get("english_text")
+        ]).strip()
 
         print(f"📄 Full transcript length: {len(full_transcript)} characters")
         print(f"📄 Transcript preview: {full_transcript[:200]}...")
@@ -124,6 +132,7 @@ Title:"""
             "generated_title": generated_title,
             "ended_at": datetime.now(timezone.utc).isoformat(),
             "full_transcript": full_transcript,
+            "refined_full_transcript": refined_full_transcript,
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
 
