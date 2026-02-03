@@ -1,15 +1,14 @@
 """Transcription refinement and enhancement services."""
 
 from typing import Optional
-import httpx
 
-from ..clients import groq_client, openrouter_api_key
+from ..clients import groq_client
 from ..config import ENHANCEMENT_MODEL, REFINED_TRANSLATION_MODEL
 
 
 async def enhance_transcript(title: str, raw_transcript: str) -> Optional[str]:
-    """Use OpenRouter to refine the transcript."""
-    if not openrouter_api_key:
+    """Use Groq to refine the transcript."""
+    if not groq_client:
         return None
     prompt = (
         "Role: You are a Technical Transcript Editor specializing in Machine Learning and Computer Science lectures.\n"
@@ -29,33 +28,15 @@ async def enhance_transcript(title: str, raw_transcript: str) -> Optional[str]:
         "Output Format: Return only the refined transcript. If a specific section is completely nonsensical even with context, place the best-guess interpretation in [brackets]."
     )
 
-    headers = {
-        "Authorization": f"Bearer {openrouter_api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost",
-        "X-Title": "Live Urdu Transcriber"
-    }
-
-    payload = {
-        "model": ENHANCEMENT_MODEL,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.2,
-        "max_tokens": 2000
-    }
-
     try:
-        async with httpx.AsyncClient(timeout=90) as client:
-            response = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers,
-                json=payload
-            )
-            response.raise_for_status()
-            data = response.json()
-            content = data["choices"][0]["message"]["content"]
-            return content.strip() if content else None
+        response = groq_client.chat.completions.create(
+            model="groq/compound",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=2000
+        )
+        content = response.choices[0].message.content
+        return content.strip() if content else None
     except Exception as e:
         print(f"Enhancement error: {e}")
         return None
