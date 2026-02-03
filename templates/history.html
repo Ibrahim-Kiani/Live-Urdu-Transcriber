@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4l2EOWE1W0s1mA+J4Gd3fFQwff4F8v8g5tPRtq5WZ+6F3Zq2B" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-2r6C1+gIw7JYcC8/6d69kqz8hCwE7g5E1g2t+9l4h1e0m7i8v0Nq5w1f8l0zF8Qx" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" integrity="sha384-mll67QQs8s0P9wF7cC2Q2XlPC+2q1E2s+zq6Dq5kQx9uK3uB6p9x2nXk1hOe7JfW" crossorigin="anonymous"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -516,6 +519,17 @@
                 </div>
             `;
 
+            const transcriptContainer = elements.lectureDetail.querySelector('.transcript-item');
+            if (transcriptContainer && window.renderMathInElement) {
+                window.renderMathInElement(transcriptContainer, {
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false }
+                    ],
+                    throwOnError: false
+                });
+            }
+
             const showOriginalBtn = document.getElementById('showOriginalBtn');
             const showEnhancedBtn = document.getElementById('showEnhancedBtn');
             const showRefinedBtn = document.getElementById('showRefinedBtn');
@@ -562,7 +576,9 @@
             if (typeof marked !== 'undefined') {
                 const rawHtml = marked.parse(text, { breaks: true, gfm: true });
                 if (typeof DOMPurify !== 'undefined') {
-                    return DOMPurify.sanitize(rawHtml);
+                    return DOMPurify.sanitize(rawHtml, {
+                        ADD_ATTR: ['data-katex']
+                    });
                 }
                 return rawHtml;
             }
