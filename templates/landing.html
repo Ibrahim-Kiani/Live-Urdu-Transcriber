@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Live Urdu Transcriber · Next Gen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Source+Sans+3:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --void-0: #050507;
+            --void-1: #0a0b10;
+            --void-2: #10121a;
+            --gold-1: #fae1a5;
+            --gold-2: #d4a755;
+            --gold-3: #8c6a28;
+            --text-strong: #f9f6ef;
+            --text-muted: #c7c0b4;
+            --text-dim: #706a7c;
+        }
+
+        /* Base scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--void-0); }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            background-color: var(--void-0);
+            color: var(--text-strong);
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 100% 0%, rgba(250, 225, 165, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 0% 100%, rgba(212, 167, 85, 0.03) 0%, transparent 50%);
+        }
+
+        /* Texture overlay */
+        .noise-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 50;
+            mix-blend-mode: overlay;
+        }
+
+        /* Typography */
+        h1, h2, h3, .font-display {
+            font-family: 'Cinzel', serif;
+            letter-spacing: 0.05em;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes orbit {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(250, 225, 165, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(250, 225, 165, 0.3); }
+        }
+
+        @keyframes reveal {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-reveal {
+            animation: reveal 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+        
+        .glow-text {
+            text-shadow: 0 0 20px rgba(250, 225, 165, 0.3);
+        }
+
+        /* Components */
+        .hero-ring {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(250, 225, 165, 0.1);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .hero-ring::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: 50%;
+            width: 40px; height: 4px;
+            background: var(--gold-2);
+            box-shadow: 0 0 15px var(--gold-2);
+            transform: translateX(-50%);
+            border-radius: 10px;
+        }
+
+        .btn-primary {
+            position: relative;
+            background: transparent;
+            color: var(--gold-1);
+            border: 1px solid rgba(250, 225, 165, 0.4);
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at center, rgba(250, 225, 165, 0.2), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .btn-primary:hover {
+            border-color: var(--gold-1);
+            box-shadow: 0 0 30px rgba(212, 167, 85, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:hover::before {
+            opacity: 1;
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, var(--gold-1), var(--gold-2));
+            color: var(--void-1);
+            font-weight: 600;
+            box-shadow: 0 10px 40px rgba(212, 167, 85, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .btn-gold:hover {
+            transform: scale(1.02) translateY(-1px);
+            box-shadow: 0 20px 50px rgba(212, 167, 85, 0.3);
+        }
+
+        .feature-card {
+            background: linear-gradient(180deg, rgba(20, 22, 30, 0.6), rgba(10, 11, 16, 0.8));
+            border: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(250, 225, 165, 0.3);
+            background: linear-gradient(180deg, rgba(25, 27, 35, 0.7), rgba(15, 16, 21, 0.9));
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            display: grid;
+            place-items: center;
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            background: rgba(250, 225, 165, 0.1);
+            border: 1px solid rgba(250, 225, 165, 0.2);
+            color: var(--gold-1);
+        }
+
+        .ornate-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            opacity: 0.3;
+            margin: 4rem 0;
+        }
+
+        .ornate-divider::before, .ornate-divider::after {
+            content: '';
+            height: 1px;
+            width: 100px;
+            background: linear-gradient(90deg, transparent, var(--gold-1), transparent);
+        }
+
+        .orb {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle at center, rgba(212, 167, 85, 0.15), transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.6;
+            animation: pulse-glow 8s infinite alternate;
+        }
+
+        /* Landing overlay image (sits above Vanta canvas, below content) */
+        .landing-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            /* fill the hero area so the image starts at the very top */
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+    <div class="noise-overlay"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-40 px-6 py-6 transition-all duration-300 backdrop-blur-sm border-b border-white/5">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3 group cursor-pointer">
+                <div class="relative w-10 h-10 flex items-center justify-center border border-yellow-500/30 rounded bg-white/5 group-hover:border-yellow-500/60 transition-colors">
+                    <div class="absolute inset-1 border border-dashed border-yellow-500/20 rounded-sm"></div>
+                    <svg class="w-5 h-5 text-yellow-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-display font-semibold tracking-wider text-sm text-yellow-100">Urdu Transcriber</span>
+                    <span class="text-[10px] uppercase tracking-[0.25em] text-white/40">Real-time AI</span>
+                </div>
+            </div>
+            <div class="flex gap-6 items-center">
+                <a href="/history" class="hidden md:block text-xs uppercase tracking-[0.2em] text-white/60 hover:text-yellow-200 transition-colors">Archive</a>
+                <a href="/live" class="btn-primary px-6 py-2 rounded text-xs uppercase tracking-[0.2em]">Launch App</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="vanta-bg" class="relative min-h-screen flex flex-col justify-center items-center text-center px-4 pt-20 overflow-hidden">
+        
+        <div class="orb top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+        <img src="/static/landing.png" alt="Landing overlay" class="landing-overlay" />
+        
+        <div class="relative z-10 max-w-4xl mx-auto space-y-8">
+            <h1 class="animate-reveal delay-100 text-5xl md:text-7xl lg:text-8xl font-display font-medium leading-tight">
+                Capture Voice.<br>
+                <span class="bg-gradient-to-r from-[#fae1a5] via-[#d4a755] to-[#8c6a28] bg-clip-text text-transparent glow-text">Preserve Meaning.</span>
+            </h1>
+            
+            <p class="animate-reveal delay-200 text-lg md:text-xl text-white/60 max-w-2xl mx-auto font-light leading-relaxed">
+                Seamless Urdu to English translation powered by <span class="text-yellow-100">Groq Whisper</span> and <span class="text-yellow-100">LLaMA 3</span>. 
+                Experience real-time transcription with unparalleled accuracy.
+            </p>
+            
+            <div class="animate-reveal delay-300 flex flex-col sm:flex-row gap-4 items-center justify-center pt-8">
+                <a href="/live" class="btn-gold px-8 py-4 rounded-lg text-xs uppercase tracking-[0.15em] w-full sm:w-auto">
+                    BEGIN TRANSCRIBING NOW
+                </a>
+                <a href="/history" class="group btn-primary flex items-center gap-2 px-8 py-4 rounded text-xs uppercase tracking-[0.2em]">
+                    EXPLORE TRANSCRIPTION HISTORY
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Vanta.js background (Three.js + Vanta Waves) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.waves.min.js"></script>
+    <script>
+    VANTA.WAVES({
+      el: "#vanta-bg",
+      mouseControls: false,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200.00,
+      minWidth: 200.00,
+      scale: 1.00,
+      scaleMobile: 1.00,
+      color: 0x0,
+      shininess: 10.00,
+      waveSpeed: 0.40
+    })
+    </script>
+
+</body>
+</html>

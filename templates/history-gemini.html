@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lecture Archive · Urdu → English</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Source+Sans+3:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --void-0: #050507;
+            --void-1: #0a0b10;
+            --void-2: #10121a;
+            --gold-1: #fae1a5;
+            --gold-2: #d4a755;
+            --gold-3: #8c6a28;
+            --text-strong: #f9f6ef;
+            --text-muted: #c7c0b4;
+            --text-dim: #706a7c;
+        }
+
+        /* Base scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--void-0); }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        body {
+            font-family: 'Source Sans 3', sans-serif;
+            background-color: var(--void-0);
+            color: var(--text-strong);
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 100% 0%, rgba(250, 225, 165, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 0% 100%, rgba(212, 167, 85, 0.03) 0%, transparent 50%);
+        }
+
+        /* Texture overlay */
+        .noise-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 50;
+            mix-blend-mode: overlay;
+        }
+
+        /* Typography */
+        h1, h2, h3, .font-display, .display-font {
+            font-family: 'Cinzel', serif;
+            letter-spacing: 0.05em;
+        }
+
+        /* Buttons & Interactions */
+        .btn-primary {
+            position: relative;
+            background: transparent;
+            color: var(--gold-1);
+            border: 1px solid rgba(250, 225, 165, 0.4);
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at center, rgba(250, 225, 165, 0.2), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .btn-primary:hover {
+            border-color: var(--gold-1);
+            box-shadow: 0 0 30px rgba(212, 167, 85, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:hover::before {
+            opacity: 1;
+        }
+
+        /* Panel Styling (matches feature-card) */
+        .panel {
+            background: linear-gradient(180deg, rgba(20, 22, 30, 0.6), rgba(10, 11, 16, 0.8));
+            border: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .panel:hover {
+            border-color: rgba(250, 225, 165, 0.1);
+        }
+
+        .panel-header {
+            border-bottom: 1px solid rgba(250, 225, 165, 0.1);
+        }
+
+        /* Form Elements */
+        .soft-input {
+            background: rgba(10, 12, 18, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-strong);
+            transition: all 0.3s ease;
+        }
+
+        .soft-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .soft-input:focus {
+            border-color: var(--gold-2);
+            box-shadow: 0 0 15px rgba(212, 167, 85, 0.1);
+            background: rgba(10, 12, 18, 0.9);
+        }
+
+        /* Lecture Cards */
+        .lecture-card {
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.02);
+            transition: all 0.3s ease;
+        }
+
+        .lecture-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(250, 225, 165, 0.3);
+            background: rgba(250, 225, 165, 0.05);
+        }
+
+        .lecture-card.active {
+            border-color: var(--gold-2);
+            background: linear-gradient(90deg, rgba(212, 167, 85, 0.1), transparent);
+            box-shadow: -2px 0 0 var(--gold-2);
+        }
+
+        /* Tags & Badges */
+        .tag {
+            border: 1px solid rgba(250, 225, 165, 0.3);
+            color: var(--gold-1);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.6rem;
+        }
+
+        /* Transcription Item */
+        .transcript-item {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Markdown Prose override */
+        .prose {
+            color: var(--text-muted);
+        }
+        .prose h1, .prose h2, .prose h3, .prose strong {
+            color: var(--text-strong);
+        }
+        .prose p {
+            line-height: 1.8;
+        }
+
+        /* Custom Action Btn */
+        .action-btn {
+            background: transparent;
+            border: 1px solid rgba(250, 225, 165, 0.3);
+            color: var(--gold-1);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(250, 225, 165, 0.1);
+            border-color: var(--gold-1);
+            transform: translateY(-1px);
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+            border-color: rgba(255,255,255,0.1);
+        }
+        
+        .empty-state {
+            border: 1px dashed rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2);
+        }
+
+        /* Animations */
+        @keyframes reveal {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-reveal {
+            animation: reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="noise-overlay"></div>
+
+    <!-- Navigation (From Landing) -->
+    <nav class="fixed top-0 w-full z-40 px-6 py-6 transition-all duration-300 backdrop-blur-sm border-b border-white/5 bg-[#050507]/80">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="/" class="flex items-center gap-3 group cursor-pointer no-underline">
+                <div class="relative w-10 h-10 flex items-center justify-center border border-yellow-500/30 rounded bg-white/5 group-hover:border-yellow-500/60 transition-colors">
+                    <div class="absolute inset-1 border border-dashed border-yellow-500/20 rounded-sm"></div>
+                    <svg class="w-5 h-5 text-yellow-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-display font-semibold tracking-wider text-sm text-yellow-100">Urdu Transcriber</span>
+                    <span class="text-[10px] uppercase tracking-[0.25em] text-white/40">Real-time AI</span>
+                </div>
+            </a>
+            <div class="flex gap-6 items-center">
+                <a href="/history" class="text-xs uppercase tracking-[0.2em] text-yellow-200 transition-colors">Archive</a>
+                <a href="/live" class="btn-primary px-6 py-2 rounded text-xs uppercase tracking-[0.2em]">Launch App</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="relative pt-32 pb-12 px-4 min-h-screen flex flex-col">
+        <div class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-8">
+            
+            <!-- Sidebar / List -->
+            <section class="panel rounded-2xl overflow-hidden self-start animate-reveal" style="animation-delay: 0.1s">
+                <div class="panel-header px-5 py-4 bg-white/5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl text-yellow-100/90">Sessions</h2>
+                        <span id="lectureCount" class="tag px-2 py-1 rounded">0</span>
+                    </div>
+                    <div class="relative">
+                        <input id="searchInput" type="text" placeholder="SEARCH ARCHIVE..." class="soft-input w-full px-4 py-3 rounded-lg text-xs tracking-wider focus:outline-none uppercase">
+                        <svg class="w-4 h-4 text-white/20 absolute right-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                </div>
+                <div id="lectureList" class="p-4 space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
+                    <!-- Javascript will populate this -->
+                </div>
+            </section>
+
+            <!-- Detail View -->
+            <section class="panel rounded-2xl overflow-hidden min-h-[500px] flex flex-col animate-reveal" style="animation-delay: 0.2s">
+                <div class="panel-header px-6 py-5 bg-white/5 flex justify-between items-center">
+                    <h2 class="text-xl text-yellow-100/90">Reading Text</h2>
+                    <div class="flex gap-2 text-[10px] uppercase tracking-widest text-white/40">
+                         <span>AI Transcribed</span>
+                         <span>•</span>
+                         <span>Enhanced</span>
+                    </div>
+                </div>
+                
+                <div id="lectureDetail" class="p-6 flex-1">
+                    <div class="empty-state rounded-xl p-12 text-center h-full flex flex-col items-center justify-center">
+                        <div class="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center mb-4">
+                            <svg class="w-6 h-6 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                        </div>
+                        <p class="text-sm tracking-wide" style="color: var(--text-muted);">SELECT A SESSION FROM THE LIST</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="errorToast" class="fixed bottom-6 right-6 max-w-sm bg-red-900/90 border border-red-500/50 text-red-100 px-6 py-4 rounded-lg shadow-2xl backdrop-blur-md transform translate-y-[150%] transition-transform duration-300 z-50 flex gap-4 items-start">
+        <svg class="w-6 h-6 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <div>
+            <h4 class="font-display font-bold text-sm tracking-wider uppercase mb-1">System Notice</h4>
+            <p id="errorMessage" class="text-sm font-light text-red-200/80"></p>
+        </div>
+    </div>
+
+    <!-- Logic from history.html preserved exactly but re-mapped if necessary, 
+         Since I kept the IDs the same (lectureList, searchInput, lectureDetail, errorToast, errorMessage),
+         this script should work out of the box. -->
+    <script>
+        const state = {
+            lectures: [],
+            filtered: [],
+            selectedId: null,
+            viewMode: 'original',
+            isEnhancing: false
+        };
+
+        const elements = {
+            lectureList: document.getElementById('lectureList'),
+            lectureDetail: document.getElementById('lectureDetail'),
+            lectureCount: document.getElementById('lectureCount'),
+            searchInput: document.getElementById('searchInput'),
+            errorToast: document.getElementById('errorToast'),
+            errorMessage: document.getElementById('errorMessage')
+        };
+
+        // ============================================
+        // Screen Wake Lock
+        // ============================================
+        let wakeLock = null;
+
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator)) return;
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLock.addEventListener('release', () => {
+                    wakeLock = null;
+                });
+            } catch (error) {
+                console.warn('Wake lock request failed:', error);
+            }
+        }
+
+        async function releaseWakeLock() {
+            if (wakeLock) {
+                try {
+                    await wakeLock.release();
+                } catch (error) {
+                    console.warn('Wake lock release failed:', error);
+                } finally {
+                    wakeLock = null;
+                }
+            }
+        }
+
+        function showError(message) {
+            elements.errorMessage.textContent = message;
+            elements.errorToast.classList.remove('translate-y-[150%]');
+
+            setTimeout(() => {
+                elements.errorToast.classList.add('translate-y-[150%]');
+            }, 5000);
+        }
+
+        function formatDate(iso) {
+            if (!iso) return '—';
+            return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+        }
+
+        function renderLectureList() {
+            elements.lectureList.innerHTML = '';
+            elements.lectureCount.textContent = state.filtered.length;
+
+            if (state.filtered.length === 0) {
+                elements.lectureList.innerHTML = `
+                    <div class="empty-state rounded-lg p-6 text-center border-0 bg-transparent">
+                        <p class="text-xs uppercase tracking-widest text-white/30">No archives found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            state.filtered.forEach((lecture) => {
+                const card = document.createElement('div');
+                card.className = 'lecture-card w-full text-left rounded-lg p-4 mb-2 cursor-pointer group relative overflow-hidden';
+                
+                if (lecture.id === state.selectedId) {
+                    card.classList.add('active');
+                }
+
+                const title = lecture.generated_title || lecture.lecture_name || 'Untitled session';
+                const subtitle = lecture.lecture_name ? lecture.lecture_name : 'Untitled session';
+                const createdAt = formatDate(lecture.created_at);
+                const isActive = !lecture.ended_at;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <p class="text-sm font-medium text-yellow-100/90 line-clamp-1 group-hover:text-white transition-colors">${escapeHtml(title)}</p>
+                        ${isActive 
+                            ? '<span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>' 
+                            : ''}
+                    </div>
+                    ${lecture.generated_title ? `<p class="text-xs text-white/40 mb-2 font-mono">${escapeHtml(subtitle)}</p>` : ''}
+                    <div class="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
+                        <p class="text-[10px] uppercase tracking-wider text-white/30">${createdAt}</p>
+                        ${isActive ? `<button class="text-[10px] uppercase tracking-widest text-red-300 hover:text-red-200" data-action="complete">Finalize</button>` : ''}
+                    </div>
+                `;
+
+                card.addEventListener('click', () => selectLecture(lecture.id));
+                // Add Enter key support
+                card.setAttribute('tabindex', '0');
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') selectLecture(lecture.id);
+                });
+
+                const completeButton = card.querySelector('[data-action="complete"]');
+                if (completeButton) {
+                    completeButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        endLectureFromHistory(lecture.id);
+                    });
+                }
+
+                elements.lectureList.appendChild(card);
+            });
+        }
+
+        async function selectLecture(lectureId) {
+            state.selectedId = lectureId;
+            renderLectureList();
+
+            // Show loading state
+            elements.lectureDetail.innerHTML = `
+                <div class="h-full flex items-center justify-center">
+                    <div class="animate-pulse flex flex-col items-center gap-4">
+                        <div class="w-8 h-8 rounded-full border-2 border-yellow-500/20 border-t-yellow-500 animate-spin"></div>
+                        <p class="text-xs uppercase tracking-widest text-white/30">Retrieving Data...</p>
+                    </div>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/lecture/${lectureId}`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to load lecture');
+                }
+
+                const data = await response.json();
+                const hasEnhanced = !!data.lecture.enhanced_full_transcript;
+                const hasRefined = !!data.lecture.refined_full_transcript;
+                const hasOriginal = !!data.lecture.full_transcript;
+                state.viewMode = hasOriginal ? 'original' : (hasRefined ? 'refined' : (hasEnhanced ? 'enhanced' : 'original'));
+                renderLectureDetail(data.lecture, data.transcriptions || []);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function endLectureFromHistory(lectureId) {
+            if (!lectureId) return;
+
+            const confirmed = window.confirm('Complete this lecture and generate its title?');
+            if (!confirmed) return;
+
+            try {
+                const response = await fetch('/lecture/end', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ lecture_id: lectureId })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to complete lecture');
+                }
+
+                await response.json().catch(() => ({}));
+                await loadLectures(lectureId);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function regenerateEnhanced(lectureId) {
+            if (!lectureId || state.isEnhancing) return;
+
+            state.isEnhancing = true;
+            renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+
+            try {
+                const response = await fetch(`/lecture/${lectureId}/enhance`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to enhance transcript');
+                }
+
+                const data = await response.json();
+
+                if (state.currentLecture) {
+                    state.currentLecture.enhanced_full_transcript = data.enhanced_full_transcript;
+                    state.viewMode = 'enhanced';
+                }
+
+                renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                state.isEnhancing = false;
+                renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+            }
+        }
+
+        function renderLectureDetail(lecture, transcriptions) {
+            state.currentLecture = lecture;
+            state.currentTranscriptions = transcriptions;
+
+            const title = lecture.generated_title || lecture.lecture_name || 'Untitled session';
+            const subtitle = lecture.lecture_name || 'Untitled session';
+
+            const originalTranscript = (lecture.full_transcript || '').trim();
+            const enhancedTranscript = (lecture.enhanced_full_transcript || '').trim();
+            const refinedTranscript = (lecture.refined_full_transcript || '').trim();
+            const showEnhanced = state.viewMode === 'enhanced';
+            const showRefined = state.viewMode === 'refined';
+            const activeTranscript = showRefined
+                ? refinedTranscript
+                : (showEnhanced ? enhancedTranscript : originalTranscript);
+
+            const transcriptContent = activeTranscript
+                ? `<div class="text-base leading-relaxed text-gray-300 prose prose-invert max-w-none font-light tracking-wide">${renderMarkdown(activeTranscript)}</div>`
+                : `
+                    <div class="empty-state rounded-xl p-8 text-center bg-white/5 border border-dashed border-white/10">
+                         <p class="text-sm font-display uppercase tracking-widest text-yellow-100/50 mb-2">
+                            ${showRefined ? 'NO REFINED DATA' : (showEnhanced ? 'NO SUMMARY AVAILABLE' : 'TRANSCRIPT EMPTY')}
+                        </p>
+                        <p class="text-xs text-white/30 font-light">
+                            ${showRefined ? 'Recording audio will populate this field.' : (showEnhanced ? 'Click "Generate Summary" to create an overview.' : 'No audio data was recorded for this session.')}
+                        </p>
+                    </div>
+                `;
+
+            elements.lectureDetail.innerHTML = `
+                <div class="flex flex-col h-full">
+                    <div class="mb-6 space-y-1">
+                         <div class="flex items-center gap-3 text-[10px] uppercase tracking-widest text-white/40 mb-2">
+                             <span>ID: ${lecture.id}</span>
+                             <span>•</span>
+                             <span>${transcriptions.length} Chunks</span>
+                             <span>•</span>
+                             <span>${formatDate(lecture.created_at)}</span>
+                         </div>
+                        <h3 class="text-3xl font-display text-white">${escapeHtml(title)}</h3>
+                        <p class="text-sm text-yellow-100/60 font-light tracking-wide">${escapeHtml(subtitle)}</p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 mb-6 p-1 bg-black/20 rounded-lg w-fit border border-white/5">
+                         <button id="showOriginalBtn" class="px-4 py-2 rounded text-[10px] uppercase tracking-[0.2em] transition-all ${state.viewMode === 'original' ? 'bg-yellow-500/20 text-yellow-100 border border-yellow-500/30' : 'text-white/40 hover:text-white hover:bg-white/5'}">
+                            Raw
+                        </button>
+                        <button id="showEnhancedBtn" class="px-4 py-2 rounded text-[10px] uppercase tracking-[0.2em] transition-all ${state.viewMode === 'enhanced' ? 'bg-yellow-500/20 text-yellow-100 border border-yellow-500/30' : 'text-white/40 hover:text-white hover:bg-white/5'}">
+                            Summary
+                        </button>
+                        <button id="showRefinedBtn" class="px-4 py-2 rounded text-[10px] uppercase tracking-[0.2em] transition-all ${state.viewMode === 'refined' ? 'bg-yellow-500/20 text-yellow-100 border border-yellow-500/30' : 'text-white/40 hover:text-white hover:bg-white/5'}">
+                            Refined
+                        </button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                        ${transcriptContent}
+                    </div>
+                    
+                    <div class="pt-6 mt-4 border-t border-white/5 flex justify-end">
+                         <button id="regenerateBtn" class="action-btn px-6 py-3 rounded text-xs flex items-center gap-2 group">
+                            <svg class="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            ${state.isEnhancing ? 'Processing...' : 'Regenerate Summary'}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Math rendering
+            const transcriptContainer = elements.lectureDetail.querySelector('.prose');
+            if (transcriptContainer && window.renderMathInElement) {
+                window.renderMathInElement(transcriptContainer, {
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false }
+                    ],
+                    throwOnError: false
+                });
+            }
+
+            // Bind buttons
+            const showOriginalBtn = document.getElementById('showOriginalBtn');
+            const showEnhancedBtn = document.getElementById('showEnhancedBtn');
+            const showRefinedBtn = document.getElementById('showRefinedBtn');
+            const regenerateBtn = document.getElementById('regenerateBtn');
+
+            if (showOriginalBtn) {
+                showOriginalBtn.disabled = !originalTranscript;
+                showOriginalBtn.addEventListener('click', () => {
+                    state.viewMode = 'original';
+                    renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+                });
+            }
+
+            if (showEnhancedBtn) {
+                showEnhancedBtn.disabled = !enhancedTranscript;
+                showEnhancedBtn.addEventListener('click', () => {
+                    state.viewMode = 'enhanced';
+                    renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+                });
+            }
+
+            if (showRefinedBtn) {
+                showRefinedBtn.disabled = !refinedTranscript;
+                showRefinedBtn.addEventListener('click', () => {
+                    state.viewMode = 'refined';
+                    renderLectureDetail(state.currentLecture, state.currentTranscriptions || []);
+                });
+            }
+
+            if (regenerateBtn) {
+                regenerateBtn.disabled = state.isEnhancing || !originalTranscript;
+                if (!originalTranscript) regenerateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                regenerateBtn.addEventListener('click', () => regenerateEnhanced(lecture.id));
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function renderMarkdown(text) {
+            if (!text) return '';
+            const mathTokens = [];
+            const tokenized = text.replace(/(\$\$[\s\S]+?\$\$|\$[^\n$]+?\$|\\\[[\s\S]+?\\\]|\\\([^\n]+?\\\))/g, (match) => {
+                mathTokens.push(match);
+                return `%%MATH_${mathTokens.length - 1}%%`;
+            });
+
+            if (typeof marked !== 'undefined') {
+                const rawHtml = marked.parse(tokenized, { breaks: true, gfm: true });
+                const sanitized = typeof DOMPurify !== 'undefined'
+                    ? DOMPurify.sanitize(rawHtml, { ADD_ATTR: ['data-katex'] })
+                    : rawHtml;
+                return sanitized.replace(/%%MATH_(\d+)%%/g, (_, index) => mathTokens[Number(index)] || '');
+            }
+
+            const escaped = escapeHtml(tokenized).replace(/%%MATH_(\d+)%%/g, (_, index) => mathTokens[Number(index)] || '');
+            return `<p>${escaped}</p>`;
+        }
+
+        function applySearchFilter() {
+            const query = elements.searchInput.value.trim().toLowerCase();
+            if (!query) {
+                state.filtered = [...state.lectures];
+            } else {
+                state.filtered = state.lectures.filter((lecture) => {
+                    const title = (lecture.generated_title || lecture.lecture_name || '').toLowerCase();
+                    const createdAt = formatDate(lecture.created_at).toLowerCase();
+                    return title.includes(query) || createdAt.includes(query);
+                });
+            }
+
+            renderLectureList();
+        }
+
+        async function loadLectures(preferredLectureId = null) {
+            try {
+                // Show initial loading on list
+                elements.lectureList.innerHTML = `<p class="p-4 text-xs text-center text-white/30">LOADING...</p>`;
+                
+                const response = await fetch('/lectures');
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Failed to load lectures');
+                }
+
+                const data = await response.json();
+                state.lectures = data.lectures || [];
+                state.filtered = [...state.lectures];
+                renderLectureList();
+
+                const nextId = preferredLectureId || state.selectedId || (state.filtered[0] && state.filtered[0].id);
+                if (nextId) {
+                    selectLecture(nextId);
+                } else {
+                    // Update empty detail view
+                    elements.lectureDetail.innerHTML = `
+                        <div class="empty-state rounded-xl p-12 text-center h-full flex flex-col items-center justify-center">
+                            <p class="text-sm tracking-wide text-white/40">NO ARCHIVES AVAILABLE</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                showError(error.message);
+                elements.lectureList.innerHTML = `<p class="p-4 text-xs text-center text-red-400">FAILED TO LOAD</p>`;
+            }
+        }
+
+        elements.searchInput.addEventListener('input', applySearchFilter);
+        
+        // Init
+        document.addEventListener('click', requestWakeLock, { once: true });
+        loadLectures();
+    </script>
+</body>
+</html>
