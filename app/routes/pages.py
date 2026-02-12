@@ -30,10 +30,10 @@ async def landing_gemini(request: Request):
 @router.get("/history", response_class=HTMLResponse)
 async def history_opus(request: Request):
     """Serve the lecture history page"""
-    return templates.TemplateResponse("history-gemini.html", {"request": request})
+    return templates.TemplateResponse("history.html", {"request": request})
 
 
 @router.get("/live", response_class=HTMLResponse)
 async def live_opus(request: Request):
     """Serve the live recording page"""
-    return templates.TemplateResponse("index-gemini.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request})
