@@ -1,6 +1,6 @@
 # **Fast Lecture Transcription Service**
 
-A mobile-responsive web application that records live audio from the user's microphone, detects speech pauses (silence), sends audio chunks to a backend, and returns English subtitles translated from Urdu using Groq's Whisper API.
+A mobile-responsive web application that records live audio from the user's microphone, detects speech pauses, sends audio chunks to a backend, and returns English subtitles translated from Urdu using Groq's Whisper + LLaMA workflow.
 
 ## Features
 
@@ -59,106 +59,47 @@ A mobile-responsive web application that records live audio from the user's micr
    pip install -r requirements.txt
    ```
 
-4. **Run the server**
-   ```bash
-   python main.py
-   ```
-
-5. **Open in browser**
-   - Navigate to `http://localhost:8000`
-
-## Deployment to Render
-
-### Step 1: Prepare Your GitHub Repository
-```bash
-git add .
-git commit -m "Ready for deployment"
-git push
+3. Run locally:
+```sh
+python main.py
+# Open http://localhost:8000
 ```
 
 ## Configuration
 
-Edit these settings in `templates/index.html`:
+- Model / config constants are in [app/config.py](app/config.py) (e.g. [`TITLE_MODEL`](app/config.py)).
+- Frontend configuration (silence thresholds, intervals, UI) is in [templates/index.html](templates/index.html).
 
-```javascript
-const CONFIG = {
-    SILENCE_THRESHOLD: 0.10,       // Volume threshold (0-1)
-    SILENCE_DURATION: 1500,        // ms before cutting
-    MAX_CHUNK_DURATION: 10000,     // Max 10 seconds per chunk
-    MIN_CHUNK_BYTES: 12000,        // Minimum audio size (12KB)
-    MIN_PEAK_VOLUME: 0.15,         // Minimum peak volume to accept
-};
-```
+## API Endpoints (important)
 
-## API Endpoints
+- POST /translate — translates an audio chunk and (optionally) saves to DB when `lecture_id` + `chunk_number` provided. Implementation: [app/routes/translate.py](app/routes/translate.py). Response model: [`TranslationResponse`](app/models.py).
+- POST /lecture/create — create a new lecture session (returns [`StartRecordingResponse`](app/models.py)). See [app/routes/lectures.py](app/routes/lectures.py).
+- POST /lecture/end — end session, assemble full transcript and generate a concise title using LLaMA. Request model: [`EndRecordingRequest`](app/models.py). See implementation: [app/routes/lectures.py](app/routes/lectures.py).
+- GET /lecture/{id} — retrieve lecture + chunks (history UI uses this). See [app/routes/lectures.py](app/routes/lectures.py).
+- POST /lecture/{id}/enhance — optional transcript enhancement using OpenRouter (`enhance_transcript` in [app/services/transcription.py](app/services/transcription.py)).
+- GET /health — quick health check for Groq, Supabase, OpenRouter: [app/routes/health.py](app/routes/health.py).
 
-### GET `/`
-Serves the web application UI.
+## Supabase (optional but recommended)
+- Setup guide: [SUPABASE_SETUP.md](SUPABASE_SETUP.md)
+- DB schema: [database_schema.sql](database_schema.sql)
+- The backend will save per-chunk rows to `transcriptions` and session metadata to `lectures`.
 
-### POST `/translate`
-Translates audio from Urdu to English.
+## Frontend
+- Live recording UI: [templates/index.html](templates/index.html)
+- Lecture history UI: [templates/history.html](templates/history.html)
 
-**Request:**
-- Body: `multipart/form-data` with `audio` file
-
-**Response:**
-```json
-{
-    "text": "Translated English text",
-    "status": "success"
-}
-```
-
-### GET `/health`
-Health check endpoint.
+## Deployment
+- Render: uses `render.yaml` (start: `uvicorn main:app --host 0.0.0.0 --port $PORT`)
+- Vercel: Serverless entrypoint in [api/index.py](api/index.py) and static UI shipped from templates.
 
 ## Troubleshooting
+- 401 from API → verify `GROQ_API_KEY` in `.env` (see [app/clients.py](app/clients.py))
+- "Database not configured" → ensure `SUPABASE_URL` + `SUPABASE_KEY` are set and `database_schema.sql` applied
+- Check /health for quick diagnostics: [app/routes/health.py](app/routes/health.py)
 
-### "Thank you" keeps getting spammed
-- Increase `SILENCE_THRESHOLD` to 0.10+
-- Increase `MIN_PEAK_VOLUME` to 0.15+
-- Increase `MIN_CHUNK_BYTES` to 12000+
+## Files to inspect
+- Backend router & logic: [app/routes/translate.py](app/routes/translate.py), [app/routes/lectures.py](app/routes/lectures.py)
+- Models: [app/models.py](app/models.py)
+- Transcript enhancement: [app/services/transcription.py](app/services/transcription.py)
+- App entrypoint: [main.py](main.py), FastAPI assembly: [app/app.py](app/app.py)
 
-### Microphone not detected
-- Allow microphone access in browser
-- Check if another app is using the microphone
-- Try a different browser
-
-### API returns 401 error
-- Check that `GROQ_API_KEY` is set correctly in environment
-- Verify API key hasn't expired
-
-### No translations appearing
-- Check browser console for JavaScript errors (F12)
-- Verify backend is running with `python main.py`
-- Check network tab for API response errors
-
-## File Structure
-
-```
-urdu-transcription/
-├── main.py                 # FastAPI server
-├── requirements.txt        # Python dependencies
-├── render.yaml            # Render deployment config
-├── .env.example           # Environment template
-├── .gitignore            # Git ignore rules
-├── README.md             # This file
-└── templates/
-    └── index.html        # Web UI + JavaScript
-```
-
-## License
-
-MIT
-
-## Support
-
-For issues or questions:
-1. Check the troubleshooting section
-2. Review browser console errors (F12)
-3. Check Render deployment logs
-4. Open a GitHub issue
-
----
-
-**Made with ❤️ for real-time Urdu to English translation**

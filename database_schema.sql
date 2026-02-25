@@ -8,6 +8,7 @@ CREATE TABLE lectures (
   ended_at TIMESTAMP WITH TIME ZONE,
   generated_title TEXT,
   full_transcript TEXT,
+  refined_full_transcript TEXT,
   enhanced_full_transcript TEXT,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

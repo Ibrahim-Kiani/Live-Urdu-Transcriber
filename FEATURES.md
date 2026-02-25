@@ -174,7 +174,8 @@ Response:
 2. Assembles full transcript
 3. Sends to LLaMA model: `meta-llama/llama-4-scout-17b-16e-instruct`
 4. LLaMA generates concise title
-5. Saves title and final transcript to database
+5. Optionally sends the transcript to OpenRouter for enhancement/summarization if `OPENROUTER_API_KEY` is configured
+6. Saves title and final (and optionally enhanced) transcript to database
 
 ### GET `/lecture/{lecture_id}`
 **Retrieve complete lecture with all transcriptions**
@@ -259,9 +260,13 @@ See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for detailed steps
 ### 4. Add Environment Variables
 ```bash
 # Copy .env.example to .env
+# Required: GROQ_API_KEY (or GROQ2_API_KEY)
 GROQ_API_KEY=your_key_here
+# Optional: for DB and enhancement features
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_KEY=eyJhbGciOiJIUzI1NiIs...
+# Optional: provides transcript enhancement (OpenRouter)
+OPENROUTER_API_KEY=your_key_here
 ```
 
 ### 5. Run Server
@@ -354,7 +359,8 @@ Should show:
 {
   "status": "healthy",
   "groq_configured": true,
-  "database_configured": true
+  "database_configured": true,
+  "openrouter_configured": true
 }
 ```
 
