@@ -2,6 +2,10 @@
 
 A mobile-responsive web application that records live audio from the user's microphone, detects speech pauses, sends audio chunks to a backend, and returns English subtitles translated from Urdu using Groq's Whisper + LLaMA workflow.
 
+**🚀 [Live Demo](https://fast-lecture-archive.vercel.app)**
+
+![Landing Page](static/landing_page.png)
+
 ## Features
 
 ✨ **Real-time Translation**
