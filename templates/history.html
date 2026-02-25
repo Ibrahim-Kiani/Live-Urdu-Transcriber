@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Source+Sans+3:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --void-0: #070709;
@@ -53,10 +53,9 @@
             mix-blend-mode: soft-light;
         }
 
-        h1, h2, h3, .display-font {
+        h1, h2, h3, .font-display {
             font-family: 'Cinzel', serif;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .app-header {
@@ -149,6 +148,21 @@
             border: 1px dashed rgba(240, 212, 138, 0.3);
         }
 
+        .btn-primary {
+            position: relative;
+            background: transparent;
+            color: var(--gold-1);
+            border: 1px solid rgba(250, 225, 165, 0.4);
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-primary:hover {
+            border-color: var(--gold-1);
+            box-shadow: 0 0 30px rgba(212, 167, 85, 0.15);
+            transform: translateY(-2px);
+        }
+
         .ghost-link {
             color: var(--gold-1);
             letter-spacing: 0.35em;
@@ -217,24 +231,27 @@
     </style>
 </head>
 <body class="app-shell min-h-screen flex flex-col">
-    <header class="app-header px-4 py-4">
-        <div class="max-w-6xl mx-auto flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="brand-crest">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                    </svg>
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-40 px-6 py-6 transition-all duration-300 backdrop-blur-sm border-b border-white/5 bg-[#050507]/80">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="/" class="flex items-center gap-3 group cursor-pointer no-underline">
+                <div class="relative w-10 h-10 flex items-center justify-center border border-yellow-500/30 rounded bg-white/5 group-hover:border-yellow-500/60 transition-colors">
+                    <div class="absolute inset-1 border border-dashed border-yellow-500/20 rounded-sm"></div>
+                    <svg class="w-5 h-5 text-yellow-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                 </div>
-                <div>
-                    <h1 class="text-lg">Lecture Archive</h1>
-                    <p class="text-xs tracking-[0.4em]" style="color: var(--text-muted);">BROWSE PAST SESSIONS</p>
+                <div class="flex flex-col">
+                    <span class="font-display font-semibold tracking-wider text-sm text-yellow-100">Urdu Transcriber</span>
+                    <span class="text-[10px] uppercase tracking-[0.25em] text-white/40">Real-time AI</span>
                 </div>
+            </a>
+            <div class="flex gap-6 items-center">
+                <a href="/history" class="text-xs uppercase tracking-[0.2em] text-yellow-200 transition-colors">Archive</a>
+                <a href="/live" class="btn-primary px-6 py-2 rounded text-xs uppercase tracking-[0.2em]">Launch App</a>
             </div>
-            <a href="/live" class="ghost-link text-xs uppercase tracking-[0.2em]">Live Session</a>
         </div>
-    </header>
+    </nav>
 
-    <main class="flex-1 max-w-6xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
+    <main class="flex-1 max-w-6xl mx-auto w-full p-4 pt-32 md:p-6 md:pt-32 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
         <section class="panel rounded-2xl overflow-hidden">
             <div class="panel-header px-4 py-3">
                 <div class="flex items-center justify-between">

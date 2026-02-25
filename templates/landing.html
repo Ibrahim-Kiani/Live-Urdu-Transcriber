@@ -223,9 +223,9 @@
     <div class="noise-overlay"></div>
 
     <!-- Navigation -->
-    <nav class="fixed top-0 w-full z-40 px-6 py-6 transition-all duration-300 backdrop-blur-sm border-b border-white/5">
+    <nav class="fixed top-0 w-full z-40 px-6 py-6 transition-all duration-300 backdrop-blur-sm border-b border-white/5 bg-[#050507]/80">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3 group cursor-pointer">
+            <a href="/" class="flex items-center gap-3 group cursor-pointer no-underline">
                 <div class="relative w-10 h-10 flex items-center justify-center border border-yellow-500/30 rounded bg-white/5 group-hover:border-yellow-500/60 transition-colors">
                     <div class="absolute inset-1 border border-dashed border-yellow-500/20 rounded-sm"></div>
                     <svg class="w-5 h-5 text-yellow-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
@@ -234,7 +234,7 @@
                     <span class="font-display font-semibold tracking-wider text-sm text-yellow-100">Urdu Transcriber</span>
                     <span class="text-[10px] uppercase tracking-[0.25em] text-white/40">Real-time AI</span>
                 </div>
-            </div>
+            </a>
             <div class="flex gap-6 items-center">
                 <a href="/history" class="hidden md:block text-xs uppercase tracking-[0.2em] text-white/60 hover:text-yellow-200 transition-colors">Archive</a>
                 <a href="/live" class="btn-primary px-6 py-2 rounded text-xs uppercase tracking-[0.2em]">Launch App</a>
@@ -246,7 +246,7 @@
     <section id="vanta-bg" class="relative min-h-screen flex flex-col justify-center items-center text-center px-4 pt-20 overflow-hidden">
         
         <div class="orb top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
-        <img src="/static/landing.png" alt="Landing overlay" class="landing-overlay" />
+        <img src="/static/landing.webp" alt="Landing overlay" class="landing-overlay" />
         
         <div class="relative z-10 max-w-4xl mx-auto space-y-8">
             <h1 class="animate-reveal delay-100 text-5xl md:text-7xl lg:text-8xl font-display font-medium leading-tight">

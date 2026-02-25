@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Source+Sans+3:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --void-0: #070709;
@@ -48,10 +48,9 @@
             mix-blend-mode: soft-light;
         }
 
-        h1, .display-font {
+        h1, .font-display {
             font-family: 'Cinzel', serif;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .app-header {
@@ -157,6 +156,21 @@
             background: rgba(235, 93, 93, 0.18);
             color: #ffe7e7;
             border-color: rgba(255, 141, 141, 0.5);
+        }
+
+        .btn-primary {
+            position: relative;
+            background: transparent;
+            color: var(--gold-1);
+            border: 1px solid rgba(250, 225, 165, 0.4);
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-primary:hover {
+            border-color: var(--gold-1);
+            box-shadow: 0 0 30px rgba(212, 167, 85, 0.15);
+            transform: translateY(-2px);
         }
 
         .subtitle-item {
@@ -303,31 +317,28 @@
     </style>
 </head>
     <body class="app-shell min-h-screen flex flex-col">
-    <!-- Header -->
-    <header class="app-header px-4 py-4">
-        <div class="max-w-2xl mx-auto flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="brand-crest">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                    </svg>
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-40 px-6 py-6 transition-all duration-300 backdrop-blur-sm border-b border-white/5 bg-[#050507]/80">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="/" class="flex items-center gap-3 group cursor-pointer no-underline">
+                <div class="relative w-10 h-10 flex items-center justify-center border border-yellow-500/30 rounded bg-white/5 group-hover:border-yellow-500/60 transition-colors">
+                    <div class="absolute inset-1 border border-dashed border-yellow-500/20 rounded-sm"></div>
+                    <svg class="w-5 h-5 text-yellow-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                 </div>
-                <div>
-                    <h1 class="text-white text-lg">Urdu → English</h1>
-                    <p class="text-xs tracking-[0.4em]" style="color: var(--text-muted);">REAL-TIME TRANSLATION</p>
+                <div class="flex flex-col">
+                    <span class="font-display font-semibold tracking-wider text-sm text-yellow-100">Urdu Transcriber</span>
+                    <span class="text-[10px] uppercase tracking-[0.25em] text-white/40">Real-time AI</span>
                 </div>
-            </div>
-            <div class="flex items-center gap-3">
-                <a href="/history" class="text-xs uppercase tracking-[0.35em]" style="color: var(--gold-1);">Archive</a>
-                <div id="statusBadge" class="status-pill px-3 py-1 rounded-full text-xs font-medium">
-                    Ready
-                </div>
+            </a>
+            <div class="flex gap-6 items-center">
+                <a href="/history" class="text-xs uppercase tracking-[0.2em] text-white/60 hover:text-yellow-200 transition-colors">Archive</a>
+                <div id="statusBadge" class="status-pill px-3 py-1 rounded-full text-[10px] uppercase tracking-widest text-white/40">Ready</div>
             </div>
         </div>
-    </header>
+    </nav>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 gap-4">
+    <main class="flex-1 flex flex-col max-w-2xl mx-auto w-full p-4 pt-24 gap-4">
         <!-- Subtitles Display Area -->
         <div class="panel flex-1 rounded-2xl overflow-hidden flex flex-col min-h-[300px]">
             <div class="panel-header px-4 py-3 flex items-center justify-between">
